@@ -1016,6 +1016,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
   }
   @media (max-width: 600px) { .jn-ov-donuts { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 699px) {
+    .jn-ov-donut-svg { width: 100px; height: 100px; }
+    .jn-ov-donut-center { font-size: 90%; }
+  }
 
   .jn-ov-donut-wrap {
     display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -3035,6 +3039,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   @media (max-width: 699px) {
     /* Schovat horní nav-tabs */
     .nav-tabs { display: none !important; }
+
+    /* Zmenšit padding wrapperů aby obsah vyplnil celou šířku */
+    .wrap { padding: 0 10px; }
+    .site-header-inner { padding: 0 12px; }
 
     /* Místo pro spodní lištu aby obsah nepřekrývala */
     body { padding-bottom: 70px; }
