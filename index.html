@@ -2,7 +2,7 @@
 <html lang="cs">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TIA · Track It All</title>
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><rect width='32' height='32' rx='8' fill='%23f5c842'/><path d='M7 10h18M7 16h11M7 22h7' stroke='%230f1117' stroke-width='2.8' stroke-linecap='round'/><circle cx='23' cy='21' r='4' stroke='%230f1117' stroke-width='2'/><path d='M26 24l2 2' stroke='%230f1117' stroke-width='2' stroke-linecap='round'/></svg>">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -3040,9 +3040,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     /* Schovat horní nav-tabs */
     .nav-tabs { display: none !important; }
 
-    /* Zmenšit padding wrapperů aby obsah vyplnil celou šířku */
-    .wrap { padding: 0 10px; }
-    .site-header-inner { padding: 0 12px; }
+    /* Zabránit horizontálnímu přetečení */
+    html, body { overflow-x: hidden; max-width: 100vw; }
+    .wrap { padding: 0 10px; max-width: 100%; }
+    .site-header-inner { padding: 0 12px; max-width: 100%; }
+
+    /* Žádný element nesmí být širší než obrazovka */
+    .jn-ov-donuts { max-width: 100%; }
+    .jn-ov-donut-svg { width: 80px !important; height: 80px !important; }
+    .jn-day-detail, .jn-tile, .jn-days-grid { max-width: 100%; }
+    .s-card, .dyn-card, .food-card { max-width: 100%; }
 
     /* Místo pro spodní lištu aby obsah nepřekrývala */
     body { padding-bottom: 70px; }
