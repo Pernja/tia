@@ -3030,6 +3030,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     .nav-tabs { flex-wrap: nowrap; overflow-x: visible; }
     .nav-tab { flex: 1 1 0; justify-content: center; text-align: center; }
   }
+
+  /* ── MOBILNÍ SPODNÍ LIŠTA ─────────────────────────────────────────────── */
+  @media (max-width: 699px) {
+    /* Schovat horní nav-tabs */
+    .nav-tabs { display: none !important; }
+
+    /* Místo pro spodní lištu aby obsah nepřekrývala */
+    body { padding-bottom: 70px; }
+
+    /* Spodní lišta */
+    .mobile-tab-bar {
+      display: flex;
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      height: 64px;
+      background: var(--surface);
+      border-top: 1px solid var(--border);
+      z-index: 9999;
+      padding-bottom: env(safe-area-inset-bottom); /* iPhone výřez */
+    }
+
+    .mobile-tab-item {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 3px;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      color: var(--muted);
+      font-family: var(--font-mono);
+      font-size: 8px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      transition: color .15s;
+      padding: 8px 4px;
+    }
+
+    .mobile-tab-item .mob-icon { font-size: 20px; line-height: 1; }
+    .mobile-tab-item .mob-label { font-size: 8px; }
+
+    .mobile-tab-item.active {
+      color: var(--accent);
+    }
+
+    .mobile-tab-item.active .mob-icon {
+      transform: translateY(-2px);
+      transition: transform .15s;
+    }
+  }
+
+  /* Na desktopu spodní lištu schovej */
+  @media (min-width: 700px) {
+    .mobile-tab-bar { display: none !important; }
+  }
   .nav-tab:hover { background: var(--card); }
   .nav-tab.active {
     background: var(--accent);
@@ -5999,7 +6056,13 @@ function switchPage(page) {
   document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
-  document.getElementById('tab-' + page).classList.add('active');
+  document.getElementById('tab-' + page)?.classList.add('active');
+
+  // Aktualizuj mobilní spodní lištu
+  document.querySelectorAll('.mobile-tab-item').forEach(t => t.classList.remove('active'));
+  const mobTab = document.getElementById('mob-tab-' + page);
+  if (mobTab) mobTab.classList.add('active');
+
   if (page === 'jidla') renderFoods();
   if (page === 'recepty') { refreshIngSelect(); renderMeals(); }
   if (page === 'suplementy') renderSupplements();
@@ -10762,6 +10825,38 @@ async function doLogin() {
   }
 }
 </script>
+
+  <!-- MOBILNÍ SPODNÍ NAVIGATION BAR -->
+  <nav class="mobile-tab-bar" id="mobile-tab-bar">
+    <button class="mobile-tab-item active" id="mob-tab-rozpocet" onclick="switchPage('rozpocet')">
+      <span class="mob-icon">💰</span>
+      <span class="mob-label">Rozpočet</span>
+    </button>
+    <button class="mobile-tab-item" id="mob-tab-jidla" onclick="switchPage('jidla')">
+      <span class="mob-icon">🥦</span>
+      <span class="mob-label">Potraviny</span>
+    </button>
+    <button class="mobile-tab-item" id="mob-tab-recepty" onclick="switchPage('recepty')">
+      <span class="mob-icon">🍳</span>
+      <span class="mob-label">Jídla</span>
+    </button>
+    <button class="mobile-tab-item" id="mob-tab-jidelnicek" onclick="switchPage('jidelnicek')">
+      <span class="mob-icon">📅</span>
+      <span class="mob-label">Jídelníček</span>
+    </button>
+    <button class="mobile-tab-item" id="mob-tab-vaha" onclick="switchPage('vaha')">
+      <span class="mob-icon">⚖️</span>
+      <span class="mob-label">Váha</span>
+    </button>
+    <button class="mobile-tab-item" id="mob-tab-suplementy" onclick="switchPage('suplementy')">
+      <span class="mob-icon">💊</span>
+      <span class="mob-label">Suplem.</span>
+    </button>
+    <button class="mobile-tab-item" id="mob-tab-profil" onclick="switchPage('profil')">
+      <span class="mob-icon">👤</span>
+      <span class="mob-label">Profil</span>
+    </button>
+  </nav>
 
 </body>
 </html>
