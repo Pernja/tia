@@ -166,8 +166,17 @@ async function supaSave(lsKey, value) {
 const _origSetItem = localStorage.setItem.bind(localStorage);
 localStorage.setItem = function(key, value) {
   _origSetItem(key, value);
+  const dbg = document.getElementById('tia-debug-log');
   if (SUPA_TABLE_MAP[key] && _supaReady && _currentUserId) {
-    try { supaSave(key, JSON.parse(value)); } catch(e) {}
+    try {
+      supaSave(key, JSON.parse(value));
+    } catch(e) {
+      if (dbg) dbg.textContent += ' | setItem-catch: ' + e.message;
+      console.warn('localStorage override error', key, e);
+    }
+  } else if (SUPA_TABLE_MAP[key]) {
+    // Klíč je sledovaný, ale podmínky nesplněny — zaloguj proč
+    if (dbg) dbg.textContent += ' | setItem SKIP key=' + key + ' ready=' + _supaReady + ' uid=' + !!_currentUserId;
   }
 };
 
@@ -8215,16 +8224,24 @@ const MEAL_TYPE_COLORS = { snidane:'#f5c842', obed:'#56cfb2', vecere:'#a78bfa', 
 const MEAL_TYPE_LABELS2 = { snidane:'🌅 Snídaně', obed:'☀️ Oběd', vecere:'🌙 Večeře', svacina:'🍎 Svačina', napoj:'🥤 Nápoj', ostatni:'📦 Ostatní', cheatmeal:'🍕 Cheatmeal' };
 
 function jnSave() {
-  try {
-    localStorage.setItem('jidlo-jidelnicek', JSON.stringify(jnPlan));
-    const dbg = document.getElementById('tia-debug-log');
-    if (dbg) {
+  const key = 'jidlo-jidelnicek';
+  const value = JSON.stringify(jnPlan);
+  // Ulož do localStorage přes _origSetItem (obejdeme override aby nedošlo k dvojitému volání)
+  _origSetItem(key, value);
+  // Explicitně zavolej supaSave — nespoléháme na override
+  if (_supaReady && _currentUserId) {
+    supaSave(key, jnPlan).then(() => {
+      const dbg = document.getElementById('tia-debug-log');
       const t = new Date().toLocaleTimeString('cs-CZ');
-      dbg.textContent = '[' + t + '] jnSave OK | supaReady=' + _supaReady + ' userId=' + !!_currentUserId + ' pending=' + ([..._pendingSync].join(',') || '—');
-    }
-  } catch(e) {
+      if (dbg) dbg.textContent = '[' + t + '] jnSave + supaSave DONE';
+    }).catch(e => {
+      const dbg = document.getElementById('tia-debug-log');
+      if (dbg) dbg.textContent = '[' + new Date().toLocaleTimeString('cs-CZ') + '] supaSave ERR: ' + e.message;
+    });
+  } else {
     const dbg = document.getElementById('tia-debug-log');
-    if (dbg) dbg.textContent = 'jnSave ERROR: ' + e;
+    const t = new Date().toLocaleTimeString('cs-CZ');
+    if (dbg) dbg.textContent = '[' + t + '] jnSave LOCAL ONLY (ready=' + _supaReady + ' uid=' + !!_currentUserId + ')';
   }
 }
 
