@@ -142,16 +142,22 @@ async function _supaUpsert(lsKey, value) {
 
 async function supaSave(lsKey, value) {
   const table = SUPA_TABLE_MAP[lsKey];
-  if (!table || !_currentUserId) return;
+  const dbg = document.getElementById('tia-debug-log');
+  if (!table || !_currentUserId) {
+    if (dbg) dbg.textContent += ' | supaSave SKIP: table=' + table + ' userId=' + !!_currentUserId;
+    return;
+  }
   _pendingSync.add(lsKey);
   _updateSyncUI();
   try {
     await _supaUpsert(lsKey, value);
     _pendingSync.delete(lsKey);
     _failedSync.delete(lsKey);
+    if (dbg) dbg.textContent += ' | supaSave OK:' + lsKey;
   } catch(e) {
     _pendingSync.delete(lsKey);
     _failedSync.add(lsKey);
+    if (dbg) dbg.textContent += ' | supaSave ERR:' + e.message;
     console.warn('Supabase save error', lsKey, e);
   }
   _updateSyncUI();
@@ -8209,7 +8215,17 @@ const MEAL_TYPE_COLORS = { snidane:'#f5c842', obed:'#56cfb2', vecere:'#a78bfa', 
 const MEAL_TYPE_LABELS2 = { snidane:'🌅 Snídaně', obed:'☀️ Oběd', vecere:'🌙 Večeře', svacina:'🍎 Svačina', napoj:'🥤 Nápoj', ostatni:'📦 Ostatní', cheatmeal:'🍕 Cheatmeal' };
 
 function jnSave() {
-  try { localStorage.setItem('jidlo-jidelnicek', JSON.stringify(jnPlan)); } catch(e) {}
+  try {
+    localStorage.setItem('jidlo-jidelnicek', JSON.stringify(jnPlan));
+    const dbg = document.getElementById('tia-debug-log');
+    if (dbg) {
+      const t = new Date().toLocaleTimeString('cs-CZ');
+      dbg.textContent = '[' + t + '] jnSave OK | supaReady=' + _supaReady + ' userId=' + !!_currentUserId + ' pending=' + ([..._pendingSync].join(',') || '—');
+    }
+  } catch(e) {
+    const dbg = document.getElementById('tia-debug-log');
+    if (dbg) dbg.textContent = 'jnSave ERROR: ' + e;
+  }
 }
 
 function jnGetMonday(date) {
@@ -10766,6 +10782,7 @@ function vahaRenderHistory() {
     <div class="site-footer-center" style="cursor:default;user-select:none;">
       <div class="footer-status-dot" id="supa-status-dot"></div>
       <div class="footer-status-label" id="supa-status-label">Připojuji…</div>
+      <div id="tia-debug-log" style="display:block;width:100%;font-family:monospace;font-size:10px;color:#f5c842;background:#0a0c12;border:1px solid #2a3050;border-radius:6px;padding:6px 8px;margin:4px 0 0;word-break:break-all;min-height:18px;">Debug: čekám na akci…</div>
       <button onclick="supaForceSyncAll()" title="Synchronizovat vše do cloudu" style="margin-left:10px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↑ sync</button>
     </div>
     <!-- Right: meta info -->
