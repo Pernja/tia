@@ -3091,11 +3091,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       display: flex;
       position: fixed;
       bottom: 0; left: 0; right: 0;
-      height: 64px;
-      background: var(--surface);
-      border-top: 1px solid var(--border);
+      background: #0e1117;
+      border-top: 1px solid rgba(255,255,255,0.07);
       z-index: 9999;
-      padding-bottom: env(safe-area-inset-bottom); /* iPhone výřez */
+      padding-bottom: env(safe-area-inset-bottom);
+      padding-top: 8px;
+      padding-left: 4px;
+      padding-right: 4px;
     }
 
     .mobile-tab-item {
@@ -3103,30 +3105,38 @@ document.addEventListener('DOMContentLoaded', async () => {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: center;
-      gap: 3px;
+      justify-content: flex-start;
+      gap: 4px;
       background: transparent;
       border: none;
       cursor: pointer;
-      color: var(--muted);
-      font-family: var(--font-mono);
-      font-size: 8px;
-      letter-spacing: .08em;
-      text-transform: uppercase;
-      transition: color .15s;
-      padding: 8px 4px;
+      color: rgba(255,255,255,0.35);
+      font-family: -apple-system, 'SF Pro Text', sans-serif;
+      font-size: 10px;
+      font-weight: 500;
+      letter-spacing: 0;
+      text-transform: none;
+      transition: color .2s;
+      padding: 0 2px 10px;
+      -webkit-tap-highlight-color: transparent;
     }
 
-    .mobile-tab-item .mob-icon { font-size: 20px; line-height: 1; }
-    .mobile-tab-item .mob-label { font-size: 8px; }
+    .mobile-tab-item .mob-icon {
+      font-size: 24px;
+      line-height: 1;
+      transition: transform .15s cubic-bezier(.34,1.56,.64,1);
+    }
+    .mobile-tab-item .mob-label {
+      font-size: 10px;
+      line-height: 1;
+    }
 
     .mobile-tab-item.active {
       color: var(--accent);
     }
 
     .mobile-tab-item.active .mob-icon {
-      transform: translateY(-2px);
-      transition: transform .15s;
+      transform: scale(1.12);
     }
   }
 
@@ -3134,6 +3144,40 @@ document.addEventListener('DOMContentLoaded', async () => {
   @media (min-width: 700px) {
     .mobile-tab-bar { display: none !important; }
   }
+
+    /* Sub-tab switcher (Potraviny / Suplementy) */
+    .food-subtab-bar {
+      display: flex;
+      gap: 0;
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+      padding: 3px;
+      margin: 0 0 18px;
+      width: fit-content;
+    }
+    .food-subtab-btn {
+      flex: 1;
+      padding: 7px 20px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: rgba(255,255,255,0.45);
+      font-family: -apple-system, 'SF Pro Text', sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background .18s, color .18s;
+      white-space: nowrap;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .food-subtab-btn.active {
+      background: var(--accent);
+      color: #fff;
+    }
+    .food-subtab-btn:not(.active):active {
+      background: rgba(255,255,255,0.08);
+    }
+
   .nav-tab:hover { background: var(--card); }
   .nav-tab.active {
     background: var(--accent);
@@ -3497,7 +3541,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   <!-- PAGE: JÍDLA A POTRAVINY -->
   <div class="page-section" id="page-jidla">
 
+    <!-- SUB-TAB: Potraviny / Suplementy -->
+    <div class="food-subtab-bar">
+      <button class="food-subtab-btn active" id="subtab-potraviny" onclick="switchFoodSubtab('potraviny')">🥦 Potraviny</button>
+      <button class="food-subtab-btn" id="subtab-suplementy" onclick="switchFoodSubtab('suplementy')">💊 Suplementy</button>
+    </div>
+
     <!-- FOOD SUMMARY STRIP -->
+    <div id="food-subpanel">
     <div class="food-summary" id="food-summary">
       <div class="s-card y">
         <div class="lbl">Potraviny</div>
@@ -3663,12 +3714,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       </table>
     </div>
     <div class="items-pagination" id="food-pagination"></div>
+    </div><!-- /food-subpanel -->
 
-  </div><!-- /page-jidla -->
-
-
-  <!-- PAGE: SUPLEMENTY -->
-  <div class="page-section" id="page-suplementy">
+    <!-- SUPLEMENTY SUB-PANEL -->
+    <div id="supp-subpanel" style="display:none">
 
     <!-- Add panel -->
     <div class="supp-add-panel">
@@ -3756,7 +3805,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       </table>
     </div>
 
-  </div><!-- /page-suplementy -->
+    </div><!-- /supp-subpanel -->
+
+  </div><!-- /page-jidla -->
+
 
   <!-- PAGE: MOJE JÍDLA -->
   <div class="page-section" id="page-recepty">
@@ -6099,7 +6151,34 @@ setTimeout(() => {
 }, 0);
 
 // --- PAGE NAVIGATION ---
+function switchFoodSubtab(tab) {
+  const foodPanel = document.getElementById('food-subpanel');
+  const suppPanel = document.getElementById('supp-subpanel');
+  const btnFood = document.getElementById('subtab-potraviny');
+  const btnSupp = document.getElementById('subtab-suplementy');
+  if (tab === 'suplementy') {
+    foodPanel.style.display = 'none';
+    suppPanel.style.display = 'block';
+    btnFood.classList.remove('active');
+    btnSupp.classList.add('active');
+    renderSupplements();
+  } else {
+    suppPanel.style.display = 'none';
+    foodPanel.style.display = 'block';
+    btnFood.classList.add('active');
+    btnSupp.classList.remove('active');
+    renderFoods();
+  }
+}
+
 function switchPage(page) {
+  // Suplementy jsou sub-záložka uvnitř Potraviny
+  if (page === 'suplementy') {
+    switchPage('jidla');
+    switchFoodSubtab('suplementy');
+    return;
+  }
+
   document.querySelectorAll('.page-section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
@@ -6110,9 +6189,12 @@ function switchPage(page) {
   const mobTab = document.getElementById('mob-tab-' + page);
   if (mobTab) mobTab.classList.add('active');
 
-  if (page === 'jidla') renderFoods();
+  // Při přepnutí na Potraviny reset sub-tab na Potraviny (ne Suplementy)
+  if (page === 'jidla') {
+    switchFoodSubtab('potraviny');
+    return;
+  }
   if (page === 'recepty') { refreshIngSelect(); renderMeals(); }
-  if (page === 'suplementy') renderSupplements();
   if (page === 'profil') loadProfil();
   if (page === 'jidelnicek') jnRender();
   if (page === 'vaha') vahaRender();
@@ -10894,10 +10976,6 @@ async function doLogin() {
     <button class="mobile-tab-item" id="mob-tab-vaha" onclick="switchPage('vaha')">
       <span class="mob-icon">⚖️</span>
       <span class="mob-label">Váha</span>
-    </button>
-    <button class="mobile-tab-item" id="mob-tab-suplementy" onclick="switchPage('suplementy')">
-      <span class="mob-icon">💊</span>
-      <span class="mob-label">Suplem.</span>
     </button>
     <button class="mobile-tab-item" id="mob-tab-profil" onclick="switchPage('profil')">
       <span class="mob-icon">👤</span>
