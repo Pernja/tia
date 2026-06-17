@@ -113,42 +113,20 @@ async function supaLoadAll(userId) {
         .maybeSingle();
       if (error) { console.warn('Supabase load error', table, error); continue; }
       if (data) {
+        // Cloud má vždy prioritu — přepíšeme localStorage přímo přes _origSetItem.
+        // Tím se vyhneme situaci na iOS Safari kdy je localStorage smazán
+        // a prázdná lokální data by "vyhrála" nad cloudovými v _syncLocalIfNewer.
         _origSetItem(lsKey, JSON.stringify(data.data));
         _supaCache[lsKey] = data.data;
       }
     }
     _supaReady = true;
     console.log('✓ Supabase data načtena');
-
-    // Po načtení zkontroluj jestli lokální data nejsou novější než cloud
-    // (případ kdy byl přidán obsah offline) a doslinkuj je
-    await _syncLocalIfNewer();
   } catch(e) {
     console.warn('Supabase nedostupná:', e);
     _supaReady = false;
   }
   _updateSyncUI();
-}
-
-// Porovná lokální data s tím co je v cloudu — pokud je lokálních dat víc, pushne je
-async function _syncLocalIfNewer() {
-  for (const lsKey of Object.keys(SUPA_TABLE_MAP)) {
-    const raw = localStorage.getItem(lsKey);
-    if (raw == null) continue;
-    try {
-      const localVal = JSON.parse(raw);
-      const cloudVal = _supaCache[lsKey];
-      // Pokud cloud nemá data vůbec, nebo lokální pole je delší → sync
-      const localLen = Array.isArray(localVal) ? localVal.length : JSON.stringify(localVal).length;
-      const cloudLen = cloudVal == null ? 0 : (Array.isArray(cloudVal) ? cloudVal.length : JSON.stringify(cloudVal).length);
-      if (cloudVal == null || localLen > cloudLen) {
-        console.log(`↑ Lokální data novější pro ${lsKey} (${localLen} vs ${cloudLen}), synchronizuji…`);
-        await _supaUpsert(lsKey, localVal);
-      }
-    } catch(e) {
-      console.warn('_syncLocalIfNewer error', lsKey, e);
-    }
-  }
 }
 
 // Upsert pomocí ON CONFLICT — jeden dotaz místo SELECT + UPDATE/INSERT
@@ -186,6 +164,28 @@ localStorage.setItem = function(key, value) {
     try { supaSave(key, JSON.parse(value)); } catch(e) {}
   }
 };
+
+// ── iOS SAFARI FIX: flush pending saves when app goes to background ───────────
+// Safari na iOS může zavřít stránku okamžitě při přepnutí karty/odchodu.
+// Při visibilitychange=hidden synchronizujeme vše co ještě čeká.
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'hidden' && _supaReady && _currentUserId && _pendingSync.size > 0) {
+    // Zkopírujeme aktuální pending klíče — set se může měnit
+    const toSync = [..._pendingSync];
+    for (const lsKey of toSync) {
+      const raw = localStorage.getItem(lsKey);
+      if (raw == null) continue;
+      try {
+        await _supaUpsert(lsKey, JSON.parse(raw));
+        _pendingSync.delete(lsKey);
+        _failedSync.delete(lsKey);
+      } catch(e) {
+        _failedSync.add(lsKey);
+        console.warn('visibilitychange sync failed', lsKey, e);
+      }
+    }
+  }
+});
 
 // ── START ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
