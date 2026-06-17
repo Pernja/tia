@@ -271,6 +271,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     --accent-text: #ffffff;
   }
   * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
   body {
     background: var(--bg);
     color: var(--text);
@@ -3066,6 +3067,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     .jn-day-kcal-sum { font-size: 11px; flex: 1; min-width: 0; }
     .jn-plan-bar-inline { width: 58px; }
 
+    /* Váha — vstupy a tlačítko na plnou šířku (datum nepřetéká) */
+    .vaha-add-row { flex-direction: column; align-items: stretch; gap: 12px; }
+    .vaha-field { width: 100%; }
+    .vaha-field input { width: 100%; }
+    .vaha-save-btn { width: 100%; }
+
+    /* Detail jídla — tabulka vodorovně rolovatelná místo přetečení */
+    .meal-detail-panel { padding: 16px 12px; overflow-x: auto; }
+    .meal-detail-table { font-size: 11px; }
+    .meal-detail-table th, .meal-detail-table td { padding: 7px 6px; }
+
+    /* Karty jídel — text ingrediencí se zalomí místo přetečení */
+    .meal-card, .s-card { overflow: hidden; }
+
     /* Místo pro spodní lištu aby obsah nepřekrývala */
     body { padding-bottom: 70px; }
 
@@ -4247,7 +4262,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
         <div class="vaha-field">
           <label for="vaha-kg">Váha (kg)</label>
-          <input type="number" id="vaha-kg" inputmode="decimal" step="0.1" min="20" max="400" placeholder="např. 78,4"
+          <input type="text" id="vaha-kg" inputmode="decimal" pattern="[0-9]*[.,]?[0-9]*" placeholder="např. 78,4"
                  onkeydown="if(event.key==='Enter')vahaAddEntry()">
         </div>
         <button class="vaha-save-btn" onclick="vahaAddEntry()">Uložit váhu</button>
