@@ -241,6 +241,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ── LIGHT ── */
   [data-theme="light"] {
     --bg: #f4f1eb;
+    --nav-float-bg: rgba(232, 228, 218, 0.94);
+    --nav-float-border: rgba(0,0,0,0.1);
+    --nav-item-muted: rgba(0,0,0,0.35);
     --surface: #e8e4da;
     --card: #ffffff;
     --border: #d4cfc4;
@@ -258,6 +261,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   /* ── B&W ── */
   [data-theme="bw"] {
     --bg: #ffffff;
+    --nav-float-bg: rgba(240, 240, 240, 0.95);
+    --nav-float-border: rgba(0,0,0,0.12);
+    --nav-item-muted: rgba(0,0,0,0.4);
     --surface: #f0f0f0;
     --card: #fafafa;
     --border: #d0d0d0;
@@ -2928,6 +2934,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     color-scheme: dark;
   }
   [data-theme="light"] .vaha-field input, [data-theme="bw"] .vaha-field input { color-scheme: light; }
+  #vaha-date {
+    width: 100%;
+    box-sizing: border-box;
+    max-width: 100%;
+  }
   .vaha-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,200,66,.14); }
   .vaha-save-btn {
     background: var(--accent); color: var(--accent-text); border: none; border-radius: 10px;
@@ -3093,11 +3104,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       bottom: 16px;
       left: 12px;
       right: 12px;
-      background: rgba(18, 20, 28, 0.92);
+      background: var(--nav-float-bg, rgba(18, 20, 28, 0.92));
       backdrop-filter: blur(20px);
       -webkit-backdrop-filter: blur(20px);
       border-radius: 22px;
-      border: 1px solid rgba(255,255,255,0.08);
+      border: 1px solid var(--nav-float-border, rgba(255,255,255,0.08));
       box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.3);
       z-index: 9999;
       padding: 8px 4px calc(8px + env(safe-area-inset-bottom, 0px)) 4px;
@@ -3108,19 +3119,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       display: flex;
       flex-direction: column;
       align-items: center;
-      justify-content: flex-start;
-      gap: 4px;
+      justify-content: center;
+      gap: 3px;
       background: transparent;
       border: none;
       cursor: pointer;
-      color: rgba(255,255,255,0.35);
+      color: var(--nav-item-muted, rgba(255,255,255,0.35));
       font-family: -apple-system, 'SF Pro Text', sans-serif;
       font-size: 10px;
       font-weight: 500;
       letter-spacing: 0;
       text-transform: none;
       transition: color .2s;
-      padding: 0 2px 10px;
+      padding: 8px 2px;
       -webkit-tap-highlight-color: transparent;
     }
 
@@ -3296,8 +3307,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     </div>
     <div class="data-btns">
-      <button class="data-btn export" onclick="exportData()" title="Stáhnout zálohu všech dat">↓ Export</button>
-      <button class="data-btn import" onclick="document.getElementById('import-file').click()" title="Obnovit data ze zálohy">↑ Import</button>
       <input type="file" id="import-file" accept=".json" style="display:none" onchange="importData(this)">
       <button class="data-btn" onclick="logoutUser()" title="Odhlásit se" style="color:var(--accent3);">⏻ Odhlásit</button>
     </div>
