@@ -1016,10 +1016,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
   }
   @media (max-width: 600px) { .jn-ov-donuts { grid-template-columns: repeat(2, 1fr); } }
-  @media (max-width: 699px) {
-    .jn-ov-donut-svg { width: 100px; height: 100px; }
-    .jn-ov-donut-center { font-size: 90%; }
-  }
 
   .jn-ov-donut-wrap {
     display: flex; flex-direction: column; align-items: center; gap: 8px;
@@ -3047,9 +3043,26 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     /* Žádný element nesmí být širší než obrazovka */
     .jn-ov-donuts { max-width: 100%; }
-    .jn-ov-donut-svg { width: 80px !important; height: 80px !important; }
     .jn-day-detail, .jn-tile, .jn-days-grid { max-width: 100%; }
     .s-card, .dyn-card, .food-card { max-width: 100%; }
+
+    /* PŘEHLEDOVÉ grafy (týden/měsíc) — zmenšit a nechat SVG škálovat */
+    .jn-ov-donut-svg { width: 88px; height: 88px; }
+    .jn-ov-donut-svg svg { width: 100%; height: 100%; display: block; }
+    .jn-ov-donut-pct { font-size: 1.1rem; }
+
+    /* DENNÍ grafy makier (4 kruhy) — zmenšit aby se vešly */
+    .jn-donuts-row { padding: 14px 6px; gap: 2px; }
+    .jn-donut-svg-wrap { width: 70px; height: 70px; }
+    .jn-donut-svg-wrap svg { width: 100%; height: 100%; display: block; }
+    .jn-donut-pct { font-size: 13px; }
+
+    /* Denní řádky — zmenšit pevné šířky aby se vešla cena i progress bar */
+    .jn-day-head { gap: 6px; padding-left: 10px; padding-right: 10px; }
+    .jn-day-date { width: auto; min-width: 78px; }
+    .jn-day-kcal-sum { font-size: 10px; flex: 1; min-width: 0; }
+    .jn-plan-bar-inline { width: 52px; }
+    .jn-day-meal-pills { max-height: 18px; }
 
     /* Místo pro spodní lištu aby obsah nepřekrývala */
     body { padding-bottom: 70px; }
