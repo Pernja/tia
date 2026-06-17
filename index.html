@@ -142,22 +142,16 @@ async function _supaUpsert(lsKey, value) {
 
 async function supaSave(lsKey, value) {
   const table = SUPA_TABLE_MAP[lsKey];
-  const dbg = document.getElementById('tia-debug-log');
-  if (!table || !_currentUserId) {
-    if (dbg) dbg.textContent += ' | supaSave SKIP: table=' + table + ' userId=' + !!_currentUserId;
-    return;
-  }
+  if (!table || !_currentUserId) return;
   _pendingSync.add(lsKey);
   _updateSyncUI();
   try {
     await _supaUpsert(lsKey, value);
     _pendingSync.delete(lsKey);
     _failedSync.delete(lsKey);
-    if (dbg) dbg.textContent += ' | supaSave OK:' + lsKey;
   } catch(e) {
     _pendingSync.delete(lsKey);
     _failedSync.add(lsKey);
-    if (dbg) dbg.textContent += ' | supaSave ERR:' + e.message;
     console.warn('Supabase save error', lsKey, e);
   }
   _updateSyncUI();
@@ -166,17 +160,10 @@ async function supaSave(lsKey, value) {
 const _origSetItem = localStorage.setItem.bind(localStorage);
 localStorage.setItem = function(key, value) {
   _origSetItem(key, value);
-  const dbg = document.getElementById('tia-debug-log');
+  // Pozn: přímé volání supaSave je nyní v každé save funkci explicitně.
+  // Override zde slouží jako záloha pro příp. volání mimo save funkce.
   if (SUPA_TABLE_MAP[key] && _supaReady && _currentUserId) {
-    try {
-      supaSave(key, JSON.parse(value));
-    } catch(e) {
-      if (dbg) dbg.textContent += ' | setItem-catch: ' + e.message;
-      console.warn('localStorage override error', key, e);
-    }
-  } else if (SUPA_TABLE_MAP[key]) {
-    // Klíč je sledovaný, ale podmínky nesplněny — zaloguj proč
-    if (dbg) dbg.textContent += ' | setItem SKIP key=' + key + ' ready=' + _supaReady + ' uid=' + !!_currentUserId;
+    try { supaSave(key, JSON.parse(value)); } catch(e) {}
   }
 };
 
@@ -4975,7 +4962,7 @@ function load() {
   return DEFAULT_DATA.map((d, i) => ({ ...d, id: i }));
 }
 function save() {
-  try { localStorage.setItem('jidlo-2026', JSON.stringify(items)); } catch(e) {}
+  try { _origSetItem('jidlo-2026', JSON.stringify(items)); if (_supaReady && _currentUserId) supaSave('jidlo-2026', items); } catch(e) {}
 }
 function nextId() { return Date.now(); }
 
@@ -6174,7 +6161,7 @@ function runPriceMigration() {
     }
   });
   if (mealsDirty) {
-    try { localStorage.setItem('jidlo-meals', JSON.stringify(meals)); } catch(e) {}
+    try { _origSetItem('jidlo-meals', JSON.stringify(meals)); if (_supaReady && _currentUserId) supaSave('jidlo-meals', meals); } catch(e) {}
   }
 
   // Patch jnPlan entries sourced from meals
@@ -6192,7 +6179,7 @@ function runPriceMigration() {
     });
   });
   if (jnDirty) {
-    try { localStorage.setItem('jidlo-jidelnicek', JSON.stringify(jnPlan)); } catch(e) {}
+    try { _origSetItem('jidlo-jidelnicek', JSON.stringify(jnPlan)); if (_supaReady && _currentUserId) supaSave('jidlo-jidelnicek', jnPlan); } catch(e) {}
   }
 }
 
@@ -6212,7 +6199,7 @@ function setMealFilter(filter, btn) {
 }
 
 function saveMealsStore() {
-  localStorage.setItem('jidlo-meals', JSON.stringify(meals));
+  _origSetItem('jidlo-meals', JSON.stringify(meals)); if (_supaReady && _currentUserId) supaSave('jidlo-meals', meals);
 }
 
 // Normalise macros to per-unit value for multiplication by amount
@@ -6868,7 +6855,7 @@ function setFoodUnit(unit, btn) {
 }
 
 function saveFoods() {
-  localStorage.setItem('jidlo-foods', JSON.stringify(foods));
+  _origSetItem('jidlo-foods', JSON.stringify(foods)); if (_supaReady && _currentUserId) supaSave('jidlo-foods', foods);
 }
 
 function addFood() {
@@ -7540,7 +7527,7 @@ function deleteVlastniAktivita(id) {
 }
 
 function saveVlastniAktivity() {
-  try { localStorage.setItem('jidlo-aktivity', JSON.stringify(vlastniAktivity)); } catch(e) {}
+  try { _origSetItem('jidlo-aktivity', JSON.stringify(vlastniAktivity)); if (_supaReady && _currentUserId) supaSave('jidlo-aktivity', vlastniAktivity); } catch(e) {}
 }
 
 function calcVAKcalWeek(a, vaha) {
@@ -7620,7 +7607,7 @@ function saveProfil() {
   profilData.aktivita = document.getElementById('p-aktivita').value;
   profilData.tuk      = parseFloat(document.getElementById('p-tuk').value)      || null;
   profilData.aktivitaTab = aktivitaTab;
-  try { localStorage.setItem('jidlo-profil', JSON.stringify(profilData)); } catch(e) {}
+  try { _origSetItem('jidlo-profil', JSON.stringify(profilData)); if (_supaReady && _currentUserId) supaSave('jidlo-profil', profilData); } catch(e) {}
   recalcMetrics();
   calcTDEE();
   toast('✓ Profil uložen');
@@ -7923,7 +7910,7 @@ let cgMacroMode = 'pct'; // 'pct' | 'gpkg'
 
 function tdeeSetMode(mode, btn) {
   profilData.tdeeMode = mode;
-  try { localStorage.setItem('jidlo-profil', JSON.stringify(profilData)); } catch(e) {}
+  try { _origSetItem('jidlo-profil', JSON.stringify(profilData)); if (_supaReady && _currentUserId) supaSave('jidlo-profil', profilData); } catch(e) {}
   document.querySelectorAll('.tdee-mode-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   document.getElementById('tdee-auto-panel').style.display   = mode === 'auto'   ? 'block' : 'none';
@@ -8172,7 +8159,7 @@ function cgSave() {
     carb: document.getElementById('cg-carb')?.value || null,
     fat:  document.getElementById('cg-fat')?.value  || null,
   };
-  try { localStorage.setItem('jidlo-profil', JSON.stringify(profilData)); } catch(e) {}
+  try { _origSetItem('jidlo-profil', JSON.stringify(profilData)); if (_supaReady && _currentUserId) supaSave('jidlo-profil', profilData); } catch(e) {}
   toast('✓ Vlastní cíl uložen a aktivován');
 }
 let jnPlan = JSON.parse(localStorage.getItem('jidlo-jidelnicek') || '{}');
@@ -8199,7 +8186,7 @@ runPriceMigration();
     });
   });
   if (changed) {
-    try { localStorage.setItem('jidlo-jidelnicek', JSON.stringify(jnPlan)); } catch(e) {}
+    try { _origSetItem('jidlo-jidelnicek', JSON.stringify(jnPlan)); if (_supaReady && _currentUserId) supaSave('jidlo-jidelnicek', jnPlan); } catch(e) {}
   }
 })();
 let jnCurrentWeekStart = jnGetMonday(new Date());
@@ -8224,25 +8211,7 @@ const MEAL_TYPE_COLORS = { snidane:'#f5c842', obed:'#56cfb2', vecere:'#a78bfa', 
 const MEAL_TYPE_LABELS2 = { snidane:'🌅 Snídaně', obed:'☀️ Oběd', vecere:'🌙 Večeře', svacina:'🍎 Svačina', napoj:'🥤 Nápoj', ostatni:'📦 Ostatní', cheatmeal:'🍕 Cheatmeal' };
 
 function jnSave() {
-  const key = 'jidlo-jidelnicek';
-  const value = JSON.stringify(jnPlan);
-  // Ulož do localStorage přes _origSetItem (obejdeme override aby nedošlo k dvojitému volání)
-  _origSetItem(key, value);
-  // Explicitně zavolej supaSave — nespoléháme na override
-  if (_supaReady && _currentUserId) {
-    supaSave(key, jnPlan).then(() => {
-      const dbg = document.getElementById('tia-debug-log');
-      const t = new Date().toLocaleTimeString('cs-CZ');
-      if (dbg) dbg.textContent = '[' + t + '] jnSave + supaSave DONE';
-    }).catch(e => {
-      const dbg = document.getElementById('tia-debug-log');
-      if (dbg) dbg.textContent = '[' + new Date().toLocaleTimeString('cs-CZ') + '] supaSave ERR: ' + e.message;
-    });
-  } else {
-    const dbg = document.getElementById('tia-debug-log');
-    const t = new Date().toLocaleTimeString('cs-CZ');
-    if (dbg) dbg.textContent = '[' + t + '] jnSave LOCAL ONLY (ready=' + _supaReady + ' uid=' + !!_currentUserId + ')';
-  }
+  try { _origSetItem('jidlo-jidelnicek', JSON.stringify(jnPlan)); if (_supaReady && _currentUserId) supaSave('jidlo-jidelnicek', jnPlan); } catch(e) {}
 }
 
 function jnGetMonday(date) {
@@ -9776,7 +9745,7 @@ let supplements = JSON.parse(localStorage.getItem('jidlo-suplementy') || '[]');
 let suppType = 'kapsle'; // current add form type
 
 function saveSupplements() {
-  localStorage.setItem('jidlo-suplementy', JSON.stringify(supplements));
+  _origSetItem('jidlo-suplementy', JSON.stringify(supplements)); if (_supaReady && _currentUserId) supaSave('jidlo-suplementy', supplements);
 }
 
 // Dose row templates per type
@@ -10501,7 +10470,7 @@ let vahaData = JSON.parse(localStorage.getItem('jidlo-vaha') || '[]'); // [{date
 let vahaPeriod = 30; // 0 = vše
 
 function vahaSaveStore() {
-  try { localStorage.setItem('jidlo-vaha', JSON.stringify(vahaData)); } catch(e) {}
+  try { _origSetItem('jidlo-vaha', JSON.stringify(vahaData)); if (_supaReady && _currentUserId) supaSave('jidlo-vaha', vahaData); } catch(e) {}
 }
 function vahaSorted() {
   return [...vahaData].sort((a, b) => a.date.localeCompare(b.date));
@@ -10539,7 +10508,7 @@ function vahaAddEntry() {
   const newest = vahaSorted().slice(-1)[0];
   if (newest && newest.date === date) {
     profilData.vaha = kg;
-    try { localStorage.setItem('jidlo-profil', JSON.stringify(profilData)); } catch(e) {}
+    try { _origSetItem('jidlo-profil', JSON.stringify(profilData)); if (_supaReady && _currentUserId) supaSave('jidlo-profil', profilData); } catch(e) {}
     const pv = document.getElementById('p-vaha');
     if (pv) pv.value = kg;
   }
@@ -10799,7 +10768,6 @@ function vahaRenderHistory() {
     <div class="site-footer-center" style="cursor:default;user-select:none;">
       <div class="footer-status-dot" id="supa-status-dot"></div>
       <div class="footer-status-label" id="supa-status-label">Připojuji…</div>
-      <div id="tia-debug-log" style="display:block;width:100%;font-family:monospace;font-size:10px;color:#f5c842;background:#0a0c12;border:1px solid #2a3050;border-radius:6px;padding:6px 8px;margin:4px 0 0;word-break:break-all;min-height:18px;">Debug: čekám na akci…</div>
       <button onclick="supaForceSyncAll()" title="Synchronizovat vše do cloudu" style="margin-left:10px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;padding:4px 10px;cursor:pointer;transition:all .15s;" onmouseover="this.style.borderColor='var(--accent2)';this.style.color='var(--accent2)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">↑ sync</button>
     </div>
     <!-- Right: meta info -->
