@@ -2717,7 +2717,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     flex-direction: column;
     padding: 0;
     overflow: hidden;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.35);
+    transform: translateY(14px);
+    transition: transform .25s ease;
   }
+  .modal-overlay.open .jnce-modal { transform: translateY(0); }
   .jnce-head {
     padding: 22px 22px 14px;
     border-bottom: 1px solid var(--border);
@@ -2807,16 +2814,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   .jnce-tot-carb { color: var(--accent2); font-weight: 600; }
   .jnce-tot-fat  { color: var(--accent4); font-weight: 600; }
   @media (max-width: 700px) {
-    /* Modal nad spodní lištou (nav má z-index 9999) */
     #jn-combo-edit-modal {
       align-items: flex-end;
       z-index: 10000;
-      padding: 0 12px calc(78px + env(safe-area-inset-bottom, 0px));
+      padding: 0 12px calc(80px + env(safe-area-inset-bottom, 0px));
     }
-    #jn-combo-edit-modal .modal.jnce-modal {
-      max-height: calc(88vh - 70px);
-      border-radius: 20px !important;
-      margin: 0;
+    .jnce-modal {
+      max-height: calc(88vh - 80px);
+      border-radius: 20px;
       width: 100%;
       max-width: none;
       box-sizing: border-box;
@@ -4444,7 +4449,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   <!-- COMBO (BLOK) EDIT MODAL -->
   <div class="modal-overlay" id="jn-combo-edit-modal" onclick="if(event.target===this)jnCloseComboEdit()">
-    <div class="modal jnce-modal" onclick="event.stopPropagation()">
+    <div class="jnce-modal" onclick="event.stopPropagation()">
       <div class="jnce-head">
         <div class="modal-title" id="jnce-title" style="margin-bottom:12px;">✏ Upravit jídlo</div>
         <div class="jn-edit-field full" style="margin-bottom:12px;">
@@ -10692,17 +10697,27 @@ function jnOpenIngredientEditor(key, idx, e) {
   topItems.forEach(item => { if (jnBackfillIngs(item)) backfilled = true; });
   if (backfilled) { if (e.isCombo) jnComboRecalc(e); jnSave(); }
 
-  // Helper: resolve unit for an item/ing – stored value first, fallback to foods DB
+  // Helper: resolve unit for an item/ing
   function resolveUnit(obj) {
     if (obj.unit && obj.unit !== '100g') return obj.unit;
-    // Try to find the food by name in the DB
+    // 1) Parse unit from name parenthetical e.g. "Kiwi zlaté (kus)" → 'ks'
+    const parenMatch = (obj.name || '').match(/\(([^)]+)\)\s*$/);
+    if (parenMatch) {
+      const p = parenMatch[1].toLowerCase().trim();
+      if (p === 'kus' || p === 'ks' || p === 'kusy') return 'ks';
+      if (p === 'balení' || p === 'baleni' || p === 'bal') return 'baleni';
+      if (p === 'ml' || p === 'litr' || p === 'l') return '100ml';
+    }
+    // 2) Lookup by name in foods DB (strip parenthetical first)
     if (typeof foods !== 'undefined' && Array.isArray(foods)) {
       const norm = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
-      const n = norm(obj.name);
-      const f = foods.find(x => norm(x.name) === n);
+      const rawName = (obj.name || '').replace(/\s*\([^)]*\)\s*$/, '').trim();
+      const n = norm(rawName);
+      let f = foods.find(x => norm(x.name) === n);
+      if (!f) f = foods.find(x => { const xn = norm(x.name); return n && (xn === n || n.startsWith(xn) || xn.startsWith(n)); });
       if (f && f.unit) return f.unit;
     }
-    return obj.unit || '100g';
+    return '100g';
   }
 
   topItems.forEach((item, gi) => {
