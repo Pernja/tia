@@ -4163,14 +4163,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       </button>
 
       <div style="font-size:12px;color:var(--muted);text-align:center;">Funguje i s fotkou z galerie</div>
-
-      <!-- API key section -->
-      <div id="scan-key-wrap" style="display:none;width:100%;max-width:320px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:8px;">
-        <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Anthropic API klíč</div>
-        <div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5;">Potřebuješ API klíč z <b style="color:var(--text)">console.anthropic.com</b></div>
-        <input id="scan-key-input" type="password" placeholder="sk-ant-api03-…" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:monospace;margin-bottom:10px;">
-        <button onclick="scanSaveKey()" style="width:100%;background:var(--accent);color:var(--accent-text);border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;">Uložit a analyzovat</button>
-      </div>
     </div>
 
     <div id="scan-step-loading" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:32px 20px;gap:20px;">
@@ -11832,75 +11824,28 @@ function scanRemoveImg(i) {
 
 async function scanStart() {
   if (_scanImages.length === 0) { toast('Nejdřív vyber fotku'); return; }
-  // Check API key
-  const apiKey = (localStorage.getItem('tia-anthropic-key') || '').trim();
-  if (!apiKey) {
-    document.getElementById('scan-key-wrap').style.display = 'block';
-    document.getElementById('scan-key-input').focus();
-    toast('Zadej API klíč');
-    return;
-  }
   document.getElementById('scan-img-thumb').src = _scanImages[0].dataUrl;
   scanShowStep('loading');
-  scanAnalyse(apiKey);
+  scanAnalyse();
 }
 
-function scanSaveKey() {
-  const key = document.getElementById('scan-key-input').value.trim();
-  if (!key.startsWith('sk-ant-')) { toast('Klíč musí začínat sk-ant-…'); return; }
-  localStorage.setItem('tia-anthropic-key', key);
-  document.getElementById('scan-key-wrap').style.display = 'none';
-  toast('✓ API klíč uložen');
-  scanStart();
-}
-
-async function scanAnalyse(apiKey) {
+async function scanAnalyse() {
   try {
-    // Build content array – one image block per photo
-    const content = _scanImages.map(img => ({
-      type: 'image',
-      source: { type: 'base64', media_type: img.mime, data: img.base64 }
-    }));
-    content.push({
-      type: 'text',
-      text: `Jsi výživový expert. Z přiložených obrázků (nutriční štítek nebo balení potraviny) vyčti nutriční hodnoty.
-Vrať POUZE JSON objekt, žádný jiný text, bez markdown backticks:
-{
-  "name": "název potraviny",
-  "unit": "100g|100ml|ks|baleni",
-  "kcal": číslo,
-  "prot": číslo,
-  "carb": číslo,
-  "fat": číslo,
-  "fiber": číslo nebo null,
-  "baleniG": číslo nebo null (celková hmotnost balení v gramech, jen pokud unit=baleni),
-  "cat": "maso|mlecne|ovoce|zelenina|obiloviny|lusteniny|tuky|vejce|napoje|suplementy|orechy|syry|sladidla|ryby|morske|sladkosti|pecivo|slane|ostatni|super",
-  "note": "krátký komentář co jsi rozpoznal, max 1 věta"
-}
-Pokud hodnotu nelze přečíst, dej 0. Unit je "100g" pokud je štítek na 100g, "100ml" pokud na 100ml, "ks" pokud na kus, "baleni" pokud na celé balení.`
+    // Získej session token pro autentizaci Edge Function
+    const { data: { session } } = await supa.auth.getSession();
+    if (!session) throw new Error('Nejsi přihlášen');
+
+    const images = _scanImages.map(img => ({ base64: img.base64, mime: img.mime }));
+
+    const resp = await supa.functions.invoke('scan-food', {
+      body: { images },
+      headers: { Authorization: `Bearer ${session.access_token}` }
     });
 
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        messages: [{ role: 'user', content }]
-      })
-    });
+    if (resp.error) throw new Error(resp.error.message);
+    const parsed = resp.data;
+    if (parsed.error) throw new Error(parsed.error);
 
-    const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error?.message || `API chyba ${resp.status}`);
-
-    const text = data.content?.find(b => b.type === 'text')?.text || '';
-    const clean = text.replace(/```json|```/gi, '').trim();
-    const parsed = JSON.parse(clean);
     scanPopulateForm(parsed);
 
   } catch(err) {
