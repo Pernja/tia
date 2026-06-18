@@ -348,6 +348,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   .site-logo-mark svg {
     width: 24px; height: 24px;
   }
+  [data-theme="bw"] .site-logo-mark {
+    background: #111111;
+    box-shadow: 0 3px 10px rgba(0,0,0,.25);
+  }
+  [data-theme="bw"] .site-logo-tia em { color: #111111; }
+  [data-theme="bw"] .site-footer-logo-mark { background: #111111 !important; }
+  [data-theme="bw"] .site-footer-logo-name em { color: #111111; }
   .site-logo-text { display: flex; flex-direction: column; gap: 3px; }
   .site-logo-tia {
     font-family: var(--font-mono); font-weight: 700; font-style: italic;
@@ -2285,7 +2292,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     font-size: 14px; transition: all .15s;
   }
   .jn-view-btn:hover { border-color: var(--muted); color: var(--text); }
-  .jn-view-btn.active { background: var(--accent); border-color: var(--accent); color: #0f1117; }
+  .jn-view-btn.active { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
 
   /* Day list layout */
   .jn-days-grid {
@@ -2481,17 +2488,21 @@ document.addEventListener('DOMContentLoaded', async () => {
     display: flex; flex-direction: column; gap: 4px;
   }
   .jn-combo-item {
-    display: flex; align-items: center; gap: 8px;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas: "dot name x" ". macros x";
+    align-items: center; column-gap: 8px; row-gap: 1px;
     font-family: var(--font-mono); font-size: 10px; color: var(--muted);
-    padding: 2px 0;
+    padding: 3px 0;
   }
-  .jn-combo-item-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
-  .jn-combo-item-name { color: var(--text); font-weight: 500; flex: 0 1 auto; }
-  .jn-combo-item-macros { flex: 1; opacity: .8; font-size: 9.5px; }
+  .jn-combo-item-dot { grid-area: dot; width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .jn-combo-item-name { grid-area: name; color: var(--text); font-weight: 500; min-width: 0; }
+  .jn-combo-item-macros { grid-area: macros; opacity: .8; font-size: 9.5px; line-height: 1.35; }
   .jn-combo-item-x {
-    width: 16px; height: 16px; border-radius: 4px; border: none; background: transparent;
-    color: var(--muted); cursor: pointer; opacity: 0; transition: opacity .15s, color .15s;
-    font-size: 9px;
+    grid-area: x;
+    width: 28px; height: 28px; border-radius: 6px; border: none; background: transparent;
+    color: var(--muted); cursor: pointer; opacity: .55; transition: opacity .15s, color .15s;
+    font-size: 11px;
   }
   .jn-combo-item:hover .jn-combo-item-x { opacity: .9; }
   .jn-combo-item-x:hover { color: var(--accent3); }
@@ -2647,8 +2658,94 @@ document.addEventListener('DOMContentLoaded', async () => {
   .jn-meal-entry:hover .jn-meal-edit { opacity: 1; }
   .jn-meal-edit:hover { background: rgba(86,207,178,.1); border-color: var(--accent2); }
 
+  /* ── Touch zařízení: akční tlačítka v jídelníčku větší a vždy viditelná ── */
+  @media (hover: none), (pointer: coarse) {
+    .jn-meal-entry { padding-right: 6px; }
+    .jn-meal-copy, .jn-meal-edit, .jn-meal-del, .jn-meal-split {
+      opacity: 1 !important;
+      width: 30px; height: 30px;
+      font-size: 14px; border-radius: 7px;
+      top: 6px;
+    }
+    .jn-meal-del   { right: 6px; }
+    .jn-meal-edit  { right: 42px; }
+    .jn-meal-copy  { right: 78px; }
+    .jn-meal-split { right: 78px; }
+    .jn-meal-entry.is-combo .jn-meal-copy  { right: 78px; }
+    .jn-meal-entry.is-combo .jn-meal-split { right: 114px; }
+    /* víc místa nahoře, aby název/makra nekolidovaly s tlačítky */
+    .jn-meal-entry { padding-top: 4px; }
+    .jn-combo-item-x { opacity: .75 !important; }
+  }
+
   /* Edit modal pro jídlo v jídelníčku */
   #jn-entry-edit-modal .modal { max-width: 420px; }
+
+  /* ── Combo (blok) edit modal ── */
+  .jnce-items-label {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: .12em;
+    color: var(--muted); margin: 0 0 8px; opacity: .85;
+  }
+  #jnce-items { display: flex; flex-direction: column; gap: 8px; }
+  .jnce-item {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px;
+  }
+  .jnce-item-top {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+  }
+  .jnce-item-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .jnce-item-name {
+    flex: 1; min-width: 0; background: transparent; border: none; outline: none;
+    color: var(--text); font-family: var(--font-head); font-weight: 700; font-size: 13px;
+    padding: 2px 0;
+  }
+  .jnce-item-name:focus { border-bottom: 1px solid var(--accent); }
+  .jnce-item-remove {
+    width: 30px; height: 30px; border-radius: 7px; flex-shrink: 0;
+    border: 1px solid rgba(244,124,90,.3); background: transparent;
+    color: var(--accent3); cursor: pointer; font-size: 13px;
+    display: flex; align-items: center; justify-content: center; transition: all .15s;
+  }
+  .jnce-item-remove:hover { background: rgba(244,124,90,.12); }
+  .jnce-item-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .jnce-grams-wrap { display: flex; align-items: center; gap: 6px; }
+  .jnce-grams-wrap label {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--muted);
+  }
+  .jnce-grams {
+    width: 90px; box-sizing: border-box;
+    background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--font-mono); font-size: 13px;
+    padding: 8px 10px; outline: none; transition: border-color .15s;
+  }
+  .jnce-grams:focus { border-color: var(--accent); }
+  .jnce-item-macros {
+    font-family: var(--font-mono); font-size: 10.5px; color: var(--muted);
+    flex: 1; min-width: 140px; line-height: 1.4;
+  }
+  .jnce-item-macros b { font-weight: 600; }
+  .jnce-totals {
+    margin-top: 16px; padding: 12px 14px;
+    background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+    border: 1px solid color-mix(in srgb, var(--accent) 25%, var(--border));
+    border-radius: 10px;
+    display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
+    font-family: var(--font-mono); font-size: 12px;
+  }
+  .jnce-totals .jnce-tot-label {
+    font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); width: 100%; margin-bottom: 2px;
+  }
+  .jnce-tot-kcal { color: var(--accent); font-weight: 700; font-size: 14px; }
+  .jnce-tot-prot { color: var(--accent3); }
+  .jnce-tot-carb { color: var(--accent2); }
+  .jnce-tot-fat  { color: var(--accent4); }
+  @media (max-width: 700px) {
+    .jnce-grams { width: 78px; }
+    .jnce-item-macros { min-width: 100%; order: 3; }
+  }
   .jn-edit-grid {
     display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px;
   }
@@ -2935,10 +3032,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
   [data-theme="light"] .vaha-field input, [data-theme="bw"] .vaha-field input { color-scheme: light; }
   #vaha-date {
-    width: 100%;
     box-sizing: border-box;
+    min-width: 0;
     max-width: 100%;
   }
+  .vaha-field input { box-sizing: border-box; }
   .vaha-field input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(245,200,66,.14); }
   .vaha-save-btn {
     background: var(--accent); color: var(--accent-text); border: none; border-radius: 10px;
@@ -3163,7 +3261,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     .food-subtab-bar {
       display: flex;
       gap: 0;
-      background: rgba(255,255,255,0.05);
+      background: color-mix(in srgb, var(--text) 7%, transparent);
       border-radius: 10px;
       padding: 3px;
       margin: 0 0 18px;
@@ -3175,7 +3273,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       border: none;
       border-radius: 8px;
       background: transparent;
-      color: rgba(255,255,255,0.45);
+      color: var(--muted);
       font-family: -apple-system, 'SF Pro Text', sans-serif;
       font-size: 14px;
       font-weight: 500;
@@ -3186,10 +3284,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     .food-subtab-btn.active {
       background: var(--accent);
-      color: #fff;
+      color: var(--accent-text);
     }
     .food-subtab-btn:not(.active):active {
-      background: rgba(255,255,255,0.08);
+      background: color-mix(in srgb, var(--text) 10%, transparent);
     }
 
   .nav-tab:hover { background: var(--card); }
@@ -4257,6 +4355,29 @@ document.addEventListener('DOMContentLoaded', async () => {
       <div class="modal-actions">
         <button class="modal-btn cancel" onclick="jnCloseEntryEdit()">Zrušit</button>
         <button class="modal-btn confirm" onclick="jnSaveEntryEdit()">Uložit změny</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMBO (BLOK) EDIT MODAL -->
+  <div class="modal-overlay" id="jn-combo-edit-modal" onclick="if(event.target===this)jnCloseComboEdit()">
+    <div class="modal" onclick="event.stopPropagation()" style="max-width:520px;">
+      <div class="modal-title">✏ Upravit blok</div>
+      <div class="jn-edit-note">Uprav gramáž jednotlivých ingrediencí — makra se přepočítají automaticky. Změny se uloží jen do jídelníčku.</div>
+
+      <div class="jn-edit-field full" style="margin-bottom:16px;">
+        <label>Název bloku</label>
+        <input type="text" id="jnce-name" placeholder="Název bloku">
+      </div>
+
+      <div class="jnce-items-label">// Ingredience</div>
+      <div id="jnce-items"></div>
+
+      <div class="jnce-totals" id="jnce-totals"></div>
+
+      <div class="modal-actions">
+        <button class="modal-btn cancel" onclick="jnCloseComboEdit()">Zrušit</button>
+        <button class="modal-btn confirm" onclick="jnSaveComboEdit()">Uložit změny</button>
       </div>
     </div>
   </div>
@@ -8633,7 +8754,7 @@ function jnRenderDays() {
           <div class="jn-combo-items">${itemsHtml}</div>
           <button class="jn-meal-split" onclick="jnComboSplit('${key}',${idx})" title="Rozdělit blok">⤴</button>
           <button class="jn-meal-copy" onclick="jnOpenCopyModal('${key}',${idx})" title="Kopírovat do jiného dne">⎘</button>
-          <button class="jn-meal-edit" onclick="jnOpenComboEdit('${key}',${idx})" title="Přejmenovat blok">✎</button>
+          <button class="jn-meal-edit" onclick="jnOpenComboEdit('${key}',${idx})" title="Upravit blok">✎</button>
           <button class="jn-meal-del" onclick="jnDeleteEntry('${key}',${idx})" title="Smazat celý blok">✕</button>
         </div>`;
       }
@@ -8896,7 +9017,7 @@ function jnTileClick(key) {
             <div class="jn-combo-items">${itemsHtml}</div>
             <button class="jn-meal-split" onclick="jnComboSplit('${key}',${idx});jnTileClick('${key}')" title="Rozdělit blok">⤴</button>
             <button class="jn-meal-copy" onclick="jnOpenCopyModal('${key}',${idx})" title="Kopírovat do jiného dne">⎘</button>
-            <button class="jn-meal-edit" onclick="jnOpenComboEdit('${key}',${idx})" title="Přejmenovat blok">✎</button>
+            <button class="jn-meal-edit" onclick="jnOpenComboEdit('${key}',${idx})" title="Upravit blok">✎</button>
             <button class="jn-meal-del" onclick="jnDeleteEntry('${key}',${idx});jnTileClick('${key}')" title="Smazat">✕</button>
           </div>`;
         }
@@ -10381,17 +10502,213 @@ function jnComboRemoveItem(key, idx, subIdx) {
   jnRefreshTileDetailIfOpen(key);
 }
 
+let _jnComboEdit = null;
+
 function jnOpenComboEdit(key, idx) {
   const e = jnPlan[key]?.[idx];
   if (!e || !e.isCombo) return;
-  const newName = window.prompt('Název bloku:', e.name || '');
-  if (newName == null) return;
-  const trimmed = newName.trim();
-  if (!trimmed) return;
-  e.name = trimmed;
+
+  // Snapshot výchozího stavu každé položky (base = makra při base gramáži)
+  const items = (e.items || []).map(it => {
+    const grams = (it.grams != null ? it.grams : (it.amount != null ? it.amount : null));
+    return {
+      ref: it,
+      name: it.name || '',
+      type: it.type,
+      baseGrams: (grams != null && grams > 0) ? Number(grams) : null,
+      curGrams:  (grams != null) ? Number(grams) : null,
+      base: {
+        kcal:  Number(it.kcal)  || 0,
+        prot:  Number(it.prot)  || 0,
+        carb:  Number(it.carb)  || 0,
+        fat:   Number(it.fat)   || 0,
+        fiber: Number(it.fiber) || 0,
+        price: Number(it.price) || 0,
+      },
+      removed: false,
+    };
+  });
+
+  _jnComboEdit = { key, idx, items };
+  document.getElementById('jnce-name').value = e.name || '';
+  jnComboEditRender();
+  document.getElementById('jn-combo-edit-modal').classList.add('open');
+  setTimeout(() => document.getElementById('jnce-name').focus(), 80);
+}
+
+// Spočítej aktuální makra položky podle poměru curGrams/baseGrams
+function jnComboItemMacros(item) {
+  const ratio = (item.baseGrams && item.baseGrams > 0 && item.curGrams != null)
+    ? item.curGrams / item.baseGrams : 1;
+  const r = (v) => Math.round(v * ratio * 10) / 10;
+  return {
+    kcal:  Math.round(item.base.kcal * ratio),
+    prot:  r(item.base.prot),
+    carb:  r(item.base.carb),
+    fat:   r(item.base.fat),
+    fiber: r(item.base.fiber),
+    price: r(item.base.price),
+  };
+}
+
+function jnComboEditRender() {
+  if (!_jnComboEdit) return;
+  const cont = document.getElementById('jnce-items');
+  const live = _jnComboEdit.items.filter(it => !it.removed);
+
+  cont.innerHTML = live.map((item) => {
+    const realIdx = _jnComboEdit.items.indexOf(item);
+    const m = jnComboItemMacros(item);
+    const color = MEAL_TYPE_COLORS[item.type] || '#94a3b8';
+    const gramsVal = item.curGrams != null ? item.curGrams : '';
+    const noGrams = (item.baseGrams == null);
+    const macroLine = noGrams
+      ? `<b>${m.kcal}</b> kcal · B ${m.prot} · S ${m.carb} · T ${m.fat}<span style="opacity:.6"> · (bez gramáže — neškáluje)</span>`
+      : `<b>${m.kcal}</b> kcal · B ${m.prot}g · S ${m.carb}g · T ${m.fat}g${m.price?` · ${m.price.toFixed(1)} Kč`:''}`;
+    return `<div class="jnce-item">
+      <div class="jnce-item-top">
+        <span class="jnce-item-dot" style="background:${color}"></span>
+        <input class="jnce-item-name" type="text" value="${esc(item.name).replace(/"/g,'&quot;')}"
+               oninput="jnComboEditSetName(${realIdx}, this.value)">
+        <button class="jnce-item-remove" title="Odebrat z bloku" onclick="jnComboEditRemove(${realIdx})">✕</button>
+      </div>
+      <div class="jnce-item-row">
+        <div class="jnce-grams-wrap">
+          <label>Gramáž</label>
+          <input class="jnce-grams" type="number" min="0" step="1"
+                 ${noGrams?'disabled placeholder="—"':''}
+                 value="${gramsVal}"
+                 oninput="jnComboEditSetGrams(${realIdx}, this.value)">
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">g</span>
+        </div>
+        <div class="jnce-item-macros">${macroLine}</div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Totals
+  const tot = { kcal:0, prot:0, carb:0, fat:0, fiber:0, price:0 };
+  live.forEach(item => {
+    const m = jnComboItemMacros(item);
+    tot.kcal += m.kcal; tot.prot += m.prot; tot.carb += m.carb;
+    tot.fat += m.fat; tot.fiber += m.fiber; tot.price += m.price;
+  });
+  document.getElementById('jnce-totals').innerHTML = `
+    <span class="jnce-tot-label">Celkem za blok</span>
+    <span class="jnce-tot-kcal">${Math.round(tot.kcal)} kcal</span>
+    <span class="jnce-tot-prot">B ${tot.prot.toFixed(1)}g</span>
+    <span class="jnce-tot-carb">S ${tot.carb.toFixed(1)}g</span>
+    <span class="jnce-tot-fat">T ${tot.fat.toFixed(1)}g</span>
+    ${tot.price>0?`<span style="color:var(--muted)">${tot.price.toFixed(1)} Kč</span>`:''}`;
+}
+
+function jnComboEditSetGrams(i, val) {
+  if (!_jnComboEdit) return;
+  const item = _jnComboEdit.items[i];
+  if (!item) return;
+  const v = parseFloat(val);
+  item.curGrams = isNaN(v) ? null : v;
+  // Přepočti jen makra (ne názvy/inputy) — překresli pouze makra a totals bez ztráty fokusu
+  jnComboEditRefreshMacros();
+}
+
+function jnComboEditSetName(i, val) {
+  if (!_jnComboEdit) return;
+  const item = _jnComboEdit.items[i];
+  if (item) item.name = val;
+}
+
+// Lehký refresh: přepočítá makra a totals bez překreslení inputů (zachová fokus)
+function jnComboEditRefreshMacros() {
+  if (!_jnComboEdit) return;
+  const cont = document.getElementById('jnce-items');
+  const live = _jnComboEdit.items.filter(it => !it.removed);
+  const nodes = cont.querySelectorAll('.jnce-item');
+  live.forEach((item, n) => {
+    const node = nodes[n];
+    if (!node) return;
+    const m = jnComboItemMacros(item);
+    const noGrams = (item.baseGrams == null);
+    const macroEl = node.querySelector('.jnce-item-macros');
+    if (macroEl) {
+      macroEl.innerHTML = noGrams
+        ? `<b>${m.kcal}</b> kcal · B ${m.prot} · S ${m.carb} · T ${m.fat}<span style="opacity:.6"> · (bez gramáže — neškáluje)</span>`
+        : `<b>${m.kcal}</b> kcal · B ${m.prot}g · S ${m.carb}g · T ${m.fat}g${m.price?` · ${m.price.toFixed(1)} Kč`:''}`;
+    }
+  });
+  const tot = { kcal:0, prot:0, carb:0, fat:0, fiber:0, price:0 };
+  live.forEach(item => {
+    const m = jnComboItemMacros(item);
+    tot.kcal += m.kcal; tot.prot += m.prot; tot.carb += m.carb;
+    tot.fat += m.fat; tot.fiber += m.fiber; tot.price += m.price;
+  });
+  document.getElementById('jnce-totals').innerHTML = `
+    <span class="jnce-tot-label">Celkem za blok</span>
+    <span class="jnce-tot-kcal">${Math.round(tot.kcal)} kcal</span>
+    <span class="jnce-tot-prot">B ${tot.prot.toFixed(1)}g</span>
+    <span class="jnce-tot-carb">S ${tot.carb.toFixed(1)}g</span>
+    <span class="jnce-tot-fat">T ${tot.fat.toFixed(1)}g</span>
+    ${tot.price>0?`<span style="color:var(--muted)">${tot.price.toFixed(1)} Kč</span>`:''}`;
+}
+
+function jnComboEditRemove(i) {
+  if (!_jnComboEdit) return;
+  const item = _jnComboEdit.items[i];
+  if (!item) return;
+  item.removed = true;
+  jnComboEditRender();
+}
+
+function jnCloseComboEdit() {
+  document.getElementById('jn-combo-edit-modal').classList.remove('open');
+  _jnComboEdit = null;
+}
+
+function jnSaveComboEdit() {
+  if (!_jnComboEdit) return;
+  const { key, idx, items } = _jnComboEdit;
+  const combo = jnPlan[key]?.[idx];
+  if (!combo || !combo.isCombo) { jnCloseComboEdit(); return; }
+
+  // Aplikuj změny na jednotlivé položky
+  const survivors = [];
+  items.forEach(item => {
+    if (item.removed) return;
+    const it = item.ref;
+    it.name = (item.name || '').trim() || it.name;
+    if (item.baseGrams != null && item.baseGrams > 0 && item.curGrams != null) {
+      const m = jnComboItemMacros(item);
+      if (m.kcal)  it.kcal  = m.kcal;  else delete it.kcal;
+      if (m.prot)  it.prot  = m.prot;  else delete it.prot;
+      if (m.carb)  it.carb  = m.carb;  else delete it.carb;
+      if (m.fat)   it.fat   = m.fat;   else delete it.fat;
+      if (m.fiber) it.fiber = m.fiber; else delete it.fiber;
+      if (m.price) it.price = m.price; else delete it.price;
+      it.grams = item.curGrams;
+      it.amount = item.curGrams;
+    }
+    survivors.push(it);
+  });
+
+  // Název bloku
+  const newName = document.getElementById('jnce-name').value.trim();
+  if (newName) combo.name = newName;
+
+  // Pokud zůstala jen 1 položka → rozpustit blok; pokud 0 → smazat
+  if (survivors.length === 0) {
+    jnPlan[key].splice(idx, 1);
+  } else if (survivors.length === 1) {
+    jnPlan[key].splice(idx, 1, survivors[0]);
+  } else {
+    combo.items = survivors;
+    jnComboRecalc(combo);
+  }
+
   jnSave();
+  jnCloseComboEdit();
   jnRenderDays();
   jnRefreshTileDetailIfOpen(key);
+  toast('✓ Blok upraven');
 }
 
 function jnRefreshTileDetailIfOpen(key) {
