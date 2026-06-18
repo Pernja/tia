@@ -9645,7 +9645,7 @@ function jnBuildEntry() {
       fat:  Math.round((Number(i.fat) ||0)*10)/10,
       price: Math.round((Number(i.price)||0)*10)/10 || undefined,
     }));
-    return { id: Date.now(), type: jnAddType, source: 'meal', name: m.name,
+    return { id: Date.now(), type: jnAddType, source: 'meal', name: m.name, mealId: m.id,
       kcal: Math.round(mKcal*10)/10, prot: Math.round(mProt*10)/10,
       carb: Math.round(mCarb*10)/10, fat:  Math.round(mFat*10)/10,
       grams: mGrams > 0 ? Math.round(mGrams) : undefined,
@@ -10618,11 +10618,25 @@ function _jnGrams(o) {
 // spárováním podle názvu s recepty v "Moje jídla". Vrací true, pokud doplnil.
 function jnBackfillIngs(item) {
   if (!item || (Array.isArray(item.ings) && item.ings.length)) return false;
-  if (!item.name) return false;
-  const norm = s => (s||'').trim().toLowerCase();
-  const meal = (typeof meals !== 'undefined' && Array.isArray(meals))
-    ? meals.find(m => norm(m.name) === norm(item.name) && Array.isArray(m.ings) && m.ings.length)
-    : null;
+  if (typeof meals === 'undefined' || !Array.isArray(meals)) return false;
+
+  // Normalizace: lowercase, bez diakritiky, bez vícenásobných mezer
+  const norm = s => (s||'')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .trim().toLowerCase().replace(/\s+/g, ' ');
+
+  const hasIngs = m => Array.isArray(m.ings) && m.ings.length;
+
+  let meal = null;
+  // 1) podle mealId (nejspolehlivější)
+  if (item.mealId != null) meal = meals.find(m => m.id === item.mealId && hasIngs(m));
+  // 2) přesná shoda názvu
+  if (!meal && item.name) meal = meals.find(m => hasIngs(m) && norm(m.name) === norm(item.name));
+  // 3) shoda po normalizaci / částečná shoda
+  if (!meal && item.name) {
+    const n = norm(item.name);
+    meal = meals.find(m => hasIngs(m) && (norm(m.name) === n || norm(m.name).includes(n) || n.includes(norm(m.name))));
+  }
   if (!meal) return false;
 
   const mIngs = meal.ings.map(i => ({
@@ -10636,9 +10650,8 @@ function jnBackfillIngs(item) {
   }));
   if (!mIngs.length) return false;
 
-  // Pokud má položka uloženou celkovou gramáž, ale recept jinou, naškálujeme
-  // ingredience tak, aby seděl součet (jinak ponecháme originál receptu).
   item.ings = mIngs;
+  if (item.mealId == null) item.mealId = meal.id;
   if (item.grams == null) {
     const sumG = mIngs.reduce((s,i)=>s+(Number(i.grams)||0),0);
     if (sumG > 0) { item.grams = Math.round(sumG); item.amount = item.grams; }
