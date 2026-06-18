@@ -2809,11 +2809,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   @media (max-width: 700px) {
     /* Modal nad spodní lištou (nav má z-index 9999) */
     #jn-combo-edit-modal { align-items: flex-end; z-index: 10000; }
-    .jnce-modal {
+    #jn-combo-edit-modal .modal.jnce-modal {
       max-height: calc(88vh - 70px);
-      border-radius: 20px;
+      border-radius: 20px !important;
       margin: 0 12px calc(78px + env(safe-area-inset-bottom, 0px));
       width: calc(100% - 24px);
+      max-width: none;
+      box-sizing: border-box;
     }
     .jnce-grams { width: 84px; }
     .jnce-item-row { flex-wrap: wrap; }
@@ -10642,6 +10644,7 @@ function jnBackfillIngs(item) {
 
   const mIngs = meal.ings.map(i => ({
     name: i.name,
+    unit: i.unit || '100g',
     grams: Number(i.amount) || undefined,
     kcal: Math.round((Number(i.kcal)||0)*10)/10,
     prot: Math.round((Number(i.prot)||0)*10)/10,
