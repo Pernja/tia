@@ -9162,8 +9162,8 @@ function jnOpenEntryEdit(dateKey, idx) {
   const entry = jnPlan[dateKey]?.[idx];
   if (!entry) return;
 
-  // Pokud jde o recept s uloženými ingrediencemi, otevři ingredienční editor
-  if (Array.isArray(entry.ings) && entry.ings.length) {
+  // Pokud má (nebo lze doplnit) ingredience, otevři ingredienční editor
+  if ((Array.isArray(entry.ings) && entry.ings.length) || jnBackfillIngs(entry)) {
     jnOpenIngredientEditor(dateKey, idx, entry);
     return;
   }
@@ -10614,6 +10614,38 @@ function _jnGrams(o) {
   return (g != null && Number(g) > 0) ? Number(g) : null;
 }
 
+// Pokus se zpětně doplnit ingredience k položce, která je nemá,
+// spárováním podle názvu s recepty v "Moje jídla". Vrací true, pokud doplnil.
+function jnBackfillIngs(item) {
+  if (!item || (Array.isArray(item.ings) && item.ings.length)) return false;
+  if (!item.name) return false;
+  const norm = s => (s||'').trim().toLowerCase();
+  const meal = (typeof meals !== 'undefined' && Array.isArray(meals))
+    ? meals.find(m => norm(m.name) === norm(item.name) && Array.isArray(m.ings) && m.ings.length)
+    : null;
+  if (!meal) return false;
+
+  const mIngs = meal.ings.map(i => ({
+    name: i.name,
+    grams: Number(i.amount) || undefined,
+    kcal: Math.round((Number(i.kcal)||0)*10)/10,
+    prot: Math.round((Number(i.prot)||0)*10)/10,
+    carb: Math.round((Number(i.carb)||0)*10)/10,
+    fat:  Math.round((Number(i.fat) ||0)*10)/10,
+    price: Math.round((Number(i.price)||0)*10)/10 || undefined,
+  }));
+  if (!mIngs.length) return false;
+
+  // Pokud má položka uloženou celkovou gramáž, ale recept jinou, naškálujeme
+  // ingredience tak, aby seděl součet (jinak ponecháme originál receptu).
+  item.ings = mIngs;
+  if (item.grams == null) {
+    const sumG = mIngs.reduce((s,i)=>s+(Number(i.grams)||0),0);
+    if (sumG > 0) { item.grams = Math.round(sumG); item.amount = item.grams; }
+  }
+  return true;
+}
+
 // Otevři editor jídla / bloku. Funguje pro:
 //  - combo (isCombo) → vypíše všechny položky; recept-položky rozloží na ingredience
 //  - jednoduché jídlo s ingrediencemi (source 'meal' s .ings) → vypíše ingredience
@@ -10631,6 +10663,11 @@ function jnOpenIngredientEditor(key, idx, e) {
   // Pokud má top-level položka .ings, rozložíme ji na ingredience (isSub=true).
   const rows = [];
   const topItems = e.isCombo ? (e.items || []) : [e];
+
+  // Auto-doplň ingredience ke každé položce, která je nemá (spárování s recepty)
+  let backfilled = false;
+  topItems.forEach(item => { if (jnBackfillIngs(item)) backfilled = true; });
+  if (backfilled) { if (e.isCombo) jnComboRecalc(e); jnSave(); }
 
   topItems.forEach((item, gi) => {
     const ings = Array.isArray(item.ings) && item.ings.length ? item.ings : null;
