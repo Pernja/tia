@@ -2808,12 +2808,16 @@ document.addEventListener('DOMContentLoaded', async () => {
   .jnce-tot-fat  { color: var(--accent4); font-weight: 600; }
   @media (max-width: 700px) {
     /* Modal nad spodní lištou (nav má z-index 9999) */
-    #jn-combo-edit-modal { align-items: flex-end; z-index: 10000; }
+    #jn-combo-edit-modal {
+      align-items: flex-end;
+      z-index: 10000;
+      padding: 0 12px calc(78px + env(safe-area-inset-bottom, 0px));
+    }
     #jn-combo-edit-modal .modal.jnce-modal {
       max-height: calc(88vh - 70px);
       border-radius: 20px !important;
-      margin: 0 12px calc(78px + env(safe-area-inset-bottom, 0px));
-      width: calc(100% - 24px);
+      margin: 0;
+      width: 100%;
       max-width: none;
       box-sizing: border-box;
     }
@@ -9641,6 +9645,7 @@ function jnBuildEntry() {
     // Ulož i jednotlivé ingredience receptu, aby šly editovat v bloku
     const mIngs = (m.ings||[]).map(i => ({
       name: i.name,
+      unit: i.unit || '100g',
       grams: Number(i.amount) || undefined,
       kcal: Math.round((Number(i.kcal)||0)*10)/10,
       prot: Math.round((Number(i.prot)||0)*10)/10,
@@ -9661,6 +9666,7 @@ function jnBuildEntry() {
     const mult = jnBuildCalcMult(f, amt, jnFoodSelectedUnit);
     const fPrice = calcIngPrice(f, amt);
     return { id: Date.now(), type: jnAddType, source: 'food', name: f.name,
+      unit: f.unit || '100g',
       kcal: Math.round(f.kcal*mult*10)/10, prot: Math.round((f.prot||0)*mult*10)/10,
       carb: Math.round((f.carb||0)*mult*10)/10, fat: Math.round((f.fat||0)*mult*10)/10,
       amount: amt, displayUnit: jnFoodSelectedUnit, price: Math.round(fPrice*10)/10 };
@@ -10686,6 +10692,19 @@ function jnOpenIngredientEditor(key, idx, e) {
   topItems.forEach(item => { if (jnBackfillIngs(item)) backfilled = true; });
   if (backfilled) { if (e.isCombo) jnComboRecalc(e); jnSave(); }
 
+  // Helper: resolve unit for an item/ing – stored value first, fallback to foods DB
+  function resolveUnit(obj) {
+    if (obj.unit && obj.unit !== '100g') return obj.unit;
+    // Try to find the food by name in the DB
+    if (typeof foods !== 'undefined' && Array.isArray(foods)) {
+      const norm = s => (s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();
+      const n = norm(obj.name);
+      const f = foods.find(x => norm(x.name) === n);
+      if (f && f.unit) return f.unit;
+    }
+    return obj.unit || '100g';
+  }
+
   topItems.forEach((item, gi) => {
     const ings = Array.isArray(item.ings) && item.ings.length ? item.ings : null;
     if (ings) {
@@ -10698,7 +10717,7 @@ function jnOpenIngredientEditor(key, idx, e) {
           ref: ing,
           name: ing.name || '',
           type: item.type,
-          unit: ing.unit || '100g',
+          unit: resolveUnit(ing),
           baseGrams: grams, curGrams: (ing.grams!=null?ing.grams:(ing.amount!=null?ing.amount:null)),
           base: { kcal:+ing.kcal||0, prot:+ing.prot||0, carb:+ing.carb||0, fat:+ing.fat||0, fiber:+ing.fiber||0, price:+ing.price||0 },
           removed: false,
@@ -10712,7 +10731,7 @@ function jnOpenIngredientEditor(key, idx, e) {
         ref: item,
         name: item.name || '',
         type: item.type,
-        unit: item.unit || '100g',
+        unit: resolveUnit(item),
         baseGrams: grams, curGrams: (item.grams!=null?item.grams:(item.amount!=null?item.amount:null)),
         base: { kcal:+item.kcal||0, prot:+item.prot||0, carb:+item.carb||0, fat:+item.fat||0, fiber:+item.fiber||0, price:+item.price||0 },
         removed: false,
