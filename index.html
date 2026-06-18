@@ -965,6 +965,18 @@ document.addEventListener('DOMContentLoaded', async () => {
   th.sortable.sort-active .sort-arrow { opacity: 1; }
 
   @keyframes fadeUp { from { opacity:0; transform:translateY(18px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes scanPulse { 0%,100% { opacity:.3; transform:scale(.8); } 50% { opacity:1; transform:scale(1.1); } }
+  .scan-label {
+    display:block; font-family:var(--font-mono); font-size:9px; letter-spacing:.1em;
+    text-transform:uppercase; color:var(--muted); margin-bottom:5px;
+  }
+  .scan-input {
+    width:100%; box-sizing:border-box; background:var(--surface); border:1px solid var(--border);
+    border-radius:10px; padding:11px 13px; color:var(--text); font-size:15px;
+    font-family:inherit; outline:none; appearance:none; -webkit-appearance:none;
+  }
+  .scan-input:focus { border-color:var(--accent); }
+  .scan-field-group { display:flex; flex-direction:column; }
 
   /* MODAL CART */
   .jn-cart {
@@ -4131,10 +4143,125 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   <!-- PAGE: SKENOVAT -->
   <div class="page-section" id="page-skenovat">
-    <div style="padding: 32px 20px; text-align: center; color: var(--muted);">
-      <div style="font-size: 48px; margin-bottom: 16px;">📷</div>
-      <div style="font-family: var(--font-mono); font-size: 11px; letter-spacing: .15em; text-transform: uppercase; margin-bottom: 8px; color: var(--accent);">Skenovat potravinu</div>
-      <div style="font-size: 14px; line-height: 1.6; margin-bottom: 32px;">Vyfotit nutriční štítek nebo čárový kód – připravujeme 🚧</div>
+    <div id="scan-step-camera" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:32px 20px;gap:24px;">
+      <div style="font-size:64px;line-height:1;">📷</div>
+      <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);">Skenovat potravinu</div>
+      <div style="font-size:14px;color:var(--muted);text-align:center;line-height:1.6;max-width:280px;">Vyfoť nutriční štítek nebo celé balení. AI automaticky přečte kalorie a makra.</div>
+      <label id="scan-btn-label" style="display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:var(--accent-text);border:none;border-radius:14px;padding:16px 32px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.3);">
+        <span style="font-size:22px;">📷</span> Vyfotit / Nahrát
+        <input type="file" id="scan-file-input" accept="image/*" capture="environment" style="display:none" onchange="scanHandleFile(this)">
+      </label>
+      <div style="font-size:12px;color:var(--muted);text-align:center;">Funguje i s fotkou z galerie</div>
+    </div>
+
+    <div id="scan-step-loading" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:32px 20px;gap:20px;">
+      <div id="scan-preview-img" style="width:160px;height:160px;border-radius:16px;overflow:hidden;border:2px solid var(--border);flex-shrink:0;">
+        <img id="scan-img-thumb" style="width:100%;height:100%;object-fit:cover;">
+      </div>
+      <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);" id="scan-loading-label">Analyzuji štítek…</div>
+      <div style="display:flex;gap:6px;" id="scan-dots">
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:scanPulse .9s ease-in-out infinite;"></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:scanPulse .9s ease-in-out .3s infinite;"></span>
+        <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:scanPulse .9s ease-in-out .6s infinite;"></span>
+      </div>
+    </div>
+
+    <div id="scan-step-form" style="display:none;padding:20px 16px 120px;">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:20px;">
+        <button onclick="scanReset()" style="background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--muted);cursor:pointer;font-size:13px;">← Zpět</button>
+        <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);">Výsledek analýzy</div>
+      </div>
+
+      <!-- Thumbnail + edit toggle -->
+      <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:20px;">
+        <img id="scan-form-thumb" style="width:72px;height:72px;border-radius:10px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;">
+        <div style="flex:1">
+          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;">AI komentář</div>
+          <div id="scan-ai-note" style="font-size:13px;color:var(--text);line-height:1.5;"></div>
+        </div>
+      </div>
+
+      <!-- Form fields -->
+      <div style="display:flex;flex-direction:column;gap:14px;">
+
+        <div class="scan-field-group">
+          <label class="scan-label">Název potraviny</label>
+          <input id="scan-name" type="text" class="scan-input" placeholder="např. Ovesné vločky">
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="scan-field-group">
+            <label class="scan-label">Jednotka</label>
+            <select id="scan-unit" class="scan-input" onchange="scanUnitChanged()">
+              <option value="100g">na 100 g</option>
+              <option value="100ml">na 100 ml</option>
+              <option value="ks">kus</option>
+              <option value="baleni">balení</option>
+            </select>
+          </div>
+          <div class="scan-field-group" id="scan-baleni-wrap" style="display:none">
+            <label class="scan-label">Hmotnost bal. (g)</label>
+            <input id="scan-baleni-g" type="number" class="scan-input" placeholder="např. 500">
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <div class="scan-field-group">
+            <label class="scan-label">kcal</label>
+            <input id="scan-kcal" type="number" class="scan-input" placeholder="0">
+          </div>
+          <div class="scan-field-group">
+            <label class="scan-label">Bílkoviny (g)</label>
+            <input id="scan-prot" type="number" class="scan-input" placeholder="0">
+          </div>
+          <div class="scan-field-group">
+            <label class="scan-label">Sacharidy (g)</label>
+            <input id="scan-carb" type="number" class="scan-input" placeholder="0">
+          </div>
+          <div class="scan-field-group">
+            <label class="scan-label">Tuky (g)</label>
+            <input id="scan-fat" type="number" class="scan-input" placeholder="0">
+          </div>
+          <div class="scan-field-group">
+            <label class="scan-label">Vláknina (g)</label>
+            <input id="scan-fiber" type="number" class="scan-input" placeholder="0">
+          </div>
+          <div class="scan-field-group">
+            <label class="scan-label">Cena (Kč)</label>
+            <input id="scan-price" type="number" class="scan-input" placeholder="0">
+          </div>
+        </div>
+
+        <div class="scan-field-group">
+          <label class="scan-label">Kategorie</label>
+          <select id="scan-cat" class="scan-input"></select>
+        </div>
+
+      </div>
+
+      <!-- Action buttons -->
+      <div style="margin-top:28px;display:flex;flex-direction:column;gap:10px;">
+        <button onclick="scanSaveBoth()" style="background:var(--accent);color:var(--accent-text);border:none;border-radius:12px;padding:15px;font-size:15px;font-weight:700;cursor:pointer;width:100%;">
+          ✓ Přidat do potravin + Jídelníček
+        </button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+          <button onclick="scanSaveFoodsOnly()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:13px;font-size:14px;cursor:pointer;">
+            🥦 Jen do potravin
+          </button>
+          <button onclick="scanSaveJnOnly()" style="background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:12px;padding:13px;font-size:14px;cursor:pointer;">
+            📅 Jen do jídelníčku
+          </button>
+        </div>
+        <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:4px;" id="scan-jn-date-label"></div>
+      </div>
+
+    </div>
+
+    <div id="scan-step-error" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:32px 20px;gap:16px;text-align:center;">
+      <div style="font-size:48px;">⚠️</div>
+      <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent3);">Nepodařilo se načíst</div>
+      <div id="scan-error-msg" style="font-size:14px;color:var(--muted);max-width:280px;line-height:1.6;"></div>
+      <button onclick="scanReset()" style="background:var(--accent);color:var(--accent-text);border:none;border-radius:10px;padding:12px 28px;font-size:14px;cursor:pointer;">Zkusit znovu</button>
     </div>
   </div>
 
@@ -11619,6 +11746,204 @@ async function doLogin() {
       <span class="mob-label">Profil</span>
     </button>
   </nav>
+
+<script>
+// ── SKENOVAT – scan & AI analyse ────────────────────────────────────────────
+
+let _scanImageBase64 = null;
+let _scanImageMime   = null;
+
+function scanReset() {
+  _scanImageBase64 = null;
+  _scanImageMime   = null;
+  document.getElementById('scan-file-input').value = '';
+  scanShowStep('camera');
+}
+
+function scanShowStep(step) {
+  ['camera','loading','form','error'].forEach(s => {
+    const el = document.getElementById('scan-step-' + s);
+    if (el) el.style.display = (s === step) ? (s === 'form' ? 'block' : 'flex') : 'none';
+  });
+}
+
+function scanHandleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const dataUrl = e.target.result;
+    const [header, b64] = dataUrl.split(',');
+    _scanImageBase64 = b64;
+    _scanImageMime   = file.type || 'image/jpeg';
+    // Show thumb in loading screen
+    document.getElementById('scan-img-thumb').src = dataUrl;
+    document.getElementById('scan-form-thumb').src = dataUrl;
+    scanShowStep('loading');
+    scanAnalyse();
+  };
+  reader.readAsDataURL(file);
+}
+
+async function scanAnalyse() {
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{
+          role: 'user',
+          content: [
+            {
+              type: 'image',
+              source: { type: 'base64', media_type: _scanImageMime, data: _scanImageBase64 }
+            },
+            {
+              type: 'text',
+              text: `Jsi výživový expert. Z tohoto obrázku (nutriční štítek nebo balení potraviny) vyčti nutriční hodnoty.
+Vrať POUZE JSON objekt, žádný jiný text, bez markdown backticks:
+{
+  "name": "název potraviny",
+  "unit": "100g|100ml|ks|baleni",
+  "kcal": číslo,
+  "prot": číslo,
+  "carb": číslo,
+  "fat": číslo,
+  "fiber": číslo nebo null,
+  "baleniG": číslo nebo null (celková hmotnost balení v gramech, jen pokud unit=baleni),
+  "cat": "maso|mlecne|ovoce|zelenina|obiloviny|lusteniny|tuky|vejce|napoje|suplementy|orechy|syry|sladidla|ryby|morske|sladkosti|pecivo|slane|ostatni|super",
+  "note": "krátký komentář co jsi rozpoznal, max 1 věta"
+}
+Pokud hodnotu nelze přečíst, dej 0. Unit je "100g" pokud je štítek na 100g, "100ml" pokud na 100ml, "ks" pokud na kus, "baleni" pokud na celé balení.`
+            }
+          ]
+        }]
+      })
+    });
+
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error?.message || 'API chyba');
+
+    const text = data.content?.find(b => b.type === 'text')?.text || '';
+    // Strip possible markdown fences
+    const clean = text.replace(/```json|```/gi, '').trim();
+    const parsed = JSON.parse(clean);
+    scanPopulateForm(parsed);
+
+  } catch(err) {
+    document.getElementById('scan-error-msg').textContent = err.message || 'Nepodařilo se analyzovat obrázek.';
+    scanShowStep('error');
+  }
+}
+
+function scanPopulateForm(d) {
+  document.getElementById('scan-name').value  = d.name  || '';
+  document.getElementById('scan-kcal').value  = d.kcal  || '';
+  document.getElementById('scan-prot').value  = d.prot  || '';
+  document.getElementById('scan-carb').value  = d.carb  || '';
+  document.getElementById('scan-fat').value   = d.fat   || '';
+  document.getElementById('scan-fiber').value = d.fiber || '';
+  document.getElementById('scan-price').value = '';
+  document.getElementById('scan-unit').value  = d.unit  || '100g';
+  document.getElementById('scan-ai-note').textContent = d.note || '';
+  if (d.baleniG) document.getElementById('scan-baleni-g').value = d.baleniG;
+  scanUnitChanged();
+
+  // Populate category select
+  const sel = document.getElementById('scan-cat');
+  sel.innerHTML = '<option value="">— bez kategorie —</option>';
+  FOOD_CATS.forEach(c => {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.emoji + ' ' + c.label;
+    if (c.id === d.cat) opt.selected = true;
+    sel.appendChild(opt);
+  });
+
+  // Show today's date in jn label
+  const today = new Date();
+  const days = ['Ne','Po','Út','St','Čt','Pá','So'];
+  const months = ['ledna','února','března','dubna','května','června','července','srpna','září','října','listopadu','prosince'];
+  document.getElementById('scan-jn-date-label').textContent =
+    `Jídelníček: ${days[today.getDay()]} ${today.getDate()}. ${months[today.getMonth()]}`;
+
+  scanShowStep('form');
+}
+
+function scanUnitChanged() {
+  const u = document.getElementById('scan-unit').value;
+  document.getElementById('scan-baleni-wrap').style.display = (u === 'baleni') ? 'flex' : 'none';
+}
+
+function scanGetFoodObj() {
+  const name  = document.getElementById('scan-name').value.trim();
+  if (!name) { document.getElementById('scan-name').focus(); toast('Zadej název'); return null; }
+  const unit  = document.getElementById('scan-unit').value;
+  return {
+    id: Date.now(),
+    name,
+    unit,
+    kcal:  parseFloat(document.getElementById('scan-kcal').value)  || 0,
+    prot:  parseFloat(document.getElementById('scan-prot').value)  || 0,
+    carb:  parseFloat(document.getElementById('scan-carb').value)  || 0,
+    fat:   parseFloat(document.getElementById('scan-fat').value)   || 0,
+    fiber: parseFloat(document.getElementById('scan-fiber').value) || 0,
+    cat:   document.getElementById('scan-cat').value,
+    price: parseFloat(document.getElementById('scan-price').value) || 0,
+    baleniG: unit === 'baleni' ? (parseFloat(document.getElementById('scan-baleni-g').value) || null) : null,
+  };
+}
+
+function scanAddToFoods(food) {
+  foods.push(food);
+  saveFoods();
+  renderFoods();
+}
+
+function scanAddToJn(food) {
+  const today = new Date();
+  const key = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  if (!jnPlan[key]) jnPlan[key] = [];
+  const mult = food.unit === 'ks' ? 1 : food.unit === '100ml' ? 1 : 1;
+  jnPlan[key].push({
+    id: Date.now(), type: 'ostatni', source: 'food',
+    name: food.name, unit: food.unit,
+    kcal: food.kcal, prot: food.prot, carb: food.carb, fat: food.fat, fiber: food.fiber,
+    grams: food.unit === 'ks' ? 1 : 100,
+    price: food.price,
+  });
+  jnSave();
+}
+
+function scanSaveBoth() {
+  const food = scanGetFoodObj(); if (!food) return;
+  scanAddToFoods({...food});
+  scanAddToJn(food);
+  jnRenderDays();
+  toast('✓ Přidáno do potravin i jídelníčku');
+  scanReset();
+  switchPage('jidelnicek');
+}
+
+function scanSaveFoodsOnly() {
+  const food = scanGetFoodObj(); if (!food) return;
+  scanAddToFoods(food);
+  toast('✓ Potravina přidána do databáze');
+  scanReset();
+  switchPage('jidla');
+}
+
+function scanSaveJnOnly() {
+  const food = scanGetFoodObj(); if (!food) return;
+  scanAddToJn(food);
+  jnRenderDays();
+  toast('✓ Přidáno do dnešního jídelníčku');
+  scanReset();
+  switchPage('jidelnicek');
+}
+</script>
 
 </body>
 </html>
