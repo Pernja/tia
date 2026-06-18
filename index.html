@@ -2811,8 +2811,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     #jn-combo-edit-modal { align-items: flex-end; z-index: 10000; }
     .jnce-modal {
       max-height: calc(88vh - 70px);
-      border-radius: 20px 20px 0 0;
-      margin-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+      border-radius: 20px;
+      margin: 0 12px calc(78px + env(safe-area-inset-bottom, 0px));
+      width: calc(100% - 24px);
     }
     .jnce-grams { width: 84px; }
     .jnce-item-row { flex-wrap: wrap; }
@@ -10694,6 +10695,7 @@ function jnOpenIngredientEditor(key, idx, e) {
           ref: ing,
           name: ing.name || '',
           type: item.type,
+          unit: ing.unit || '100g',
           baseGrams: grams, curGrams: (ing.grams!=null?ing.grams:(ing.amount!=null?ing.amount:null)),
           base: { kcal:+ing.kcal||0, prot:+ing.prot||0, carb:+ing.carb||0, fat:+ing.fat||0, fiber:+ing.fiber||0, price:+ing.price||0 },
           removed: false,
@@ -10707,6 +10709,7 @@ function jnOpenIngredientEditor(key, idx, e) {
         ref: item,
         name: item.name || '',
         type: item.type,
+        unit: item.unit || '100g',
         baseGrams: grams, curGrams: (item.grams!=null?item.grams:(item.amount!=null?item.amount:null)),
         base: { kcal:+item.kcal||0, prot:+item.prot||0, carb:+item.carb||0, fat:+item.fat||0, fiber:+item.fiber||0, price:+item.price||0 },
         removed: false,
@@ -10791,12 +10794,12 @@ function jnComboEditRender() {
       </div>
       <div class="jnce-item-row">
         <div class="jnce-grams-wrap">
-          <label>Gramáž</label>
+          <label>${row.unit === 'ks' ? 'Počet ks' : row.unit === 'baleni' ? 'Počet bal.' : 'Gramáž'}</label>
           <input class="jnce-grams" type="number" min="0" step="1" inputmode="decimal"
                  ${noGrams?'disabled placeholder="—"':''}
                  value="${gramsVal}"
                  oninput="jnRowSetGrams(${ri}, this.value)">
-          <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">g</span>
+          <span style="font-family:var(--font-mono);font-size:11px;color:var(--muted)">${row.unit === 'ks' ? 'ks' : row.unit === 'baleni' ? 'bal.' : row.unit === '100ml' || row.unit === '1l' ? 'ml' : 'g'}</span>
         </div>
         <div class="jnce-item-macros">${_jnceMacroLine(row)}</div>
       </div>
