@@ -4143,15 +4143,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   <!-- PAGE: SKENOVAT -->
   <div class="page-section" id="page-skenovat">
-    <div id="scan-step-camera" style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:32px 20px;gap:24px;">
-      <div style="font-size:64px;line-height:1;">📷</div>
+    <div id="scan-step-camera" style="display:flex;flex-direction:column;align-items:center;padding:32px 20px 120px;gap:20px;">
+      <div style="font-size:56px;line-height:1;">📷</div>
       <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);">Skenovat potravinu</div>
-      <div style="font-size:14px;color:var(--muted);text-align:center;line-height:1.6;max-width:280px;">Vyfoť nutriční štítek nebo celé balení. AI automaticky přečte kalorie a makra.</div>
-      <label id="scan-btn-label" style="display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:var(--accent-text);border:none;border-radius:14px;padding:16px 32px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.3);">
-        <span style="font-size:22px;">📷</span> Vyfotit / Nahrát
-        <input type="file" id="scan-file-input" accept="image/*" capture="environment" style="display:none" onchange="scanHandleFile(this)">
+      <div style="font-size:14px;color:var(--muted);text-align:center;line-height:1.6;max-width:280px;">Vyfoť nutriční štítek nebo celé balení. Můžeš přidat více fotek (přední + zadní strana).</div>
+
+      <!-- Thumbnails + add button -->
+      <div id="scan-thumbs-wrap" style="display:none;flex-wrap:wrap;gap:10px;justify-content:center;width:100%;max-width:320px;"></div>
+
+      <!-- Primary photo button -->
+      <label style="display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:var(--accent-text);border:none;border-radius:14px;padding:15px 28px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.3);">
+        <span style="font-size:20px;">📷</span> Vyfotit / Nahrát
+        <input type="file" id="scan-file-input" accept="image/*" capture="environment" multiple style="display:none" onchange="scanHandleFile(this)">
       </label>
+
+      <!-- Analyse button – shown only when images selected -->
+      <button id="scan-analyse-btn" onclick="scanStart()" style="display:none;background:var(--surface);color:var(--text);border:1px solid var(--accent);border-radius:12px;padding:13px 28px;font-size:15px;font-weight:600;cursor:pointer;width:100%;max-width:320px;">
+        🔍 Analyzovat fotky
+      </button>
+
       <div style="font-size:12px;color:var(--muted);text-align:center;">Funguje i s fotkou z galerie</div>
+
+      <!-- API key section -->
+      <div id="scan-key-wrap" style="display:none;width:100%;max-width:320px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-top:8px;">
+        <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;">Anthropic API klíč</div>
+        <div style="font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.5;">Potřebuješ API klíč z <b style="color:var(--text)">console.anthropic.com</b></div>
+        <input id="scan-key-input" type="password" placeholder="sk-ant-api03-…" style="width:100%;box-sizing:border-box;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px;font-family:monospace;margin-bottom:10px;">
+        <button onclick="scanSaveKey()" style="width:100%;background:var(--accent);color:var(--accent-text);border:none;border-radius:8px;padding:11px;font-size:14px;font-weight:600;cursor:pointer;">Uložit a analyzovat</button>
+      </div>
     </div>
 
     <div id="scan-step-loading" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:32px 20px;gap:20px;">
@@ -4159,7 +4178,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <img id="scan-img-thumb" style="width:100%;height:100%;object-fit:cover;">
       </div>
       <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);" id="scan-loading-label">Analyzuji štítek…</div>
-      <div style="display:flex;gap:6px;" id="scan-dots">
+      <div style="display:flex;gap:6px;">
         <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:scanPulse .9s ease-in-out infinite;"></span>
         <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:scanPulse .9s ease-in-out .3s infinite;"></span>
         <span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:scanPulse .9s ease-in-out .6s infinite;"></span>
@@ -4172,23 +4191,21 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div style="font-family:var(--font-mono);font-size:11px;letter-spacing:.15em;text-transform:uppercase;color:var(--accent);">Výsledek analýzy</div>
       </div>
 
-      <!-- Thumbnail + edit toggle -->
+      <!-- Thumbnails row + AI note -->
       <div style="display:flex;gap:12px;align-items:flex-start;margin-bottom:20px;">
-        <img id="scan-form-thumb" style="width:72px;height:72px;border-radius:10px;object-fit:cover;border:1px solid var(--border);flex-shrink:0;">
-        <div style="flex:1">
-          <div style="font-size:12px;color:var(--muted);margin-bottom:4px;font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;">AI komentář</div>
+        <div id="scan-form-thumbs" style="display:flex;gap:6px;flex-shrink:0;"></div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-family:var(--font-mono);font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;">AI komentář</div>
           <div id="scan-ai-note" style="font-size:13px;color:var(--text);line-height:1.5;"></div>
         </div>
       </div>
 
       <!-- Form fields -->
       <div style="display:flex;flex-direction:column;gap:14px;">
-
         <div class="scan-field-group">
           <label class="scan-label">Název potraviny</label>
           <input id="scan-name" type="text" class="scan-input" placeholder="např. Ovesné vločky">
         </div>
-
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
           <div class="scan-field-group">
             <label class="scan-label">Jednotka</label>
@@ -4204,7 +4221,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             <input id="scan-baleni-g" type="number" class="scan-input" placeholder="např. 500">
           </div>
         </div>
-
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
           <div class="scan-field-group">
             <label class="scan-label">kcal</label>
@@ -4231,12 +4247,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             <input id="scan-price" type="number" class="scan-input" placeholder="0">
           </div>
         </div>
-
         <div class="scan-field-group">
           <label class="scan-label">Kategorie</label>
           <select id="scan-cat" class="scan-input"></select>
         </div>
-
       </div>
 
       <!-- Action buttons -->
@@ -4254,7 +4268,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
         <div style="text-align:center;font-size:12px;color:var(--muted);margin-top:4px;" id="scan-jn-date-label"></div>
       </div>
-
     </div>
 
     <div id="scan-step-error" style="display:none;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;padding:32px 20px;gap:16px;text-align:center;">
@@ -11750,14 +11763,13 @@ async function doLogin() {
 <script>
 // ── SKENOVAT – scan & AI analyse ────────────────────────────────────────────
 
-let _scanImageBase64 = null;
-let _scanImageMime   = null;
+let _scanImages = []; // { base64, mime, dataUrl }
 
 function scanReset() {
-  _scanImageBase64 = null;
-  _scanImageMime   = null;
+  _scanImages = [];
   document.getElementById('scan-file-input').value = '';
   scanShowStep('camera');
+  scanRenderThumbs();
 }
 
 function scanShowStep(step) {
@@ -11768,41 +11780,90 @@ function scanShowStep(step) {
 }
 
 function scanHandleFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    const dataUrl = e.target.result;
-    const [header, b64] = dataUrl.split(',');
-    _scanImageBase64 = b64;
-    _scanImageMime   = file.type || 'image/jpeg';
-    // Show thumb in loading screen
-    document.getElementById('scan-img-thumb').src = dataUrl;
-    document.getElementById('scan-form-thumb').src = dataUrl;
-    scanShowStep('loading');
-    scanAnalyse();
-  };
-  reader.readAsDataURL(file);
+  const files = Array.from(input.files);
+  if (!files.length) return;
+  let loaded = 0;
+  files.forEach(file => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const dataUrl = e.target.result;
+      const [, b64] = dataUrl.split(',');
+      _scanImages.push({ base64: b64, mime: file.type || 'image/jpeg', dataUrl });
+      loaded++;
+      scanRenderThumbs();
+      if (loaded === files.length) {
+        // Show first thumb in loading screen
+        document.getElementById('scan-img-thumb').src = _scanImages[0].dataUrl;
+        document.getElementById('scan-form-thumb').src = _scanImages[0].dataUrl;
+      }
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
-async function scanAnalyse() {
+function scanRenderThumbs() {
+  const wrap = document.getElementById('scan-thumbs-wrap');
+  const btn  = document.getElementById('scan-analyse-btn');
+  if (!wrap) return;
+  if (_scanImages.length === 0) {
+    wrap.innerHTML = '';
+    wrap.style.display = 'none';
+    if (btn) btn.style.display = 'none';
+    return;
+  }
+  wrap.style.display = 'flex';
+  if (btn) btn.style.display = 'block';
+  wrap.innerHTML = _scanImages.map((img, i) => `
+    <div style="position:relative;flex-shrink:0;">
+      <img src="${img.dataUrl}" style="width:72px;height:72px;border-radius:10px;object-fit:cover;border:2px solid var(--accent);">
+      <button onclick="scanRemoveImg(${i})" style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;border-radius:50%;background:var(--accent3);color:#fff;border:none;cursor:pointer;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;">✕</button>
+    </div>
+  `).join('') + `
+    <label style="width:72px;height:72px;border-radius:10px;border:2px dashed var(--border);display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--muted);font-size:28px;flex-shrink:0;">
+      +<input type="file" accept="image/*" multiple style="display:none" onchange="scanHandleFile(this)">
+    </label>
+  `;
+}
+
+function scanRemoveImg(i) {
+  _scanImages.splice(i, 1);
+  scanRenderThumbs();
+}
+
+async function scanStart() {
+  if (_scanImages.length === 0) { toast('Nejdřív vyber fotku'); return; }
+  // Check API key
+  const apiKey = (localStorage.getItem('tia-anthropic-key') || '').trim();
+  if (!apiKey) {
+    document.getElementById('scan-key-wrap').style.display = 'block';
+    document.getElementById('scan-key-input').focus();
+    toast('Zadej API klíč');
+    return;
+  }
+  document.getElementById('scan-img-thumb').src = _scanImages[0].dataUrl;
+  scanShowStep('loading');
+  scanAnalyse(apiKey);
+}
+
+function scanSaveKey() {
+  const key = document.getElementById('scan-key-input').value.trim();
+  if (!key.startsWith('sk-ant-')) { toast('Klíč musí začínat sk-ant-…'); return; }
+  localStorage.setItem('tia-anthropic-key', key);
+  document.getElementById('scan-key-wrap').style.display = 'none';
+  toast('✓ API klíč uložen');
+  scanStart();
+}
+
+async function scanAnalyse(apiKey) {
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image',
-              source: { type: 'base64', media_type: _scanImageMime, data: _scanImageBase64 }
-            },
-            {
-              type: 'text',
-              text: `Jsi výživový expert. Z tohoto obrázku (nutriční štítek nebo balení potraviny) vyčti nutriční hodnoty.
+    // Build content array – one image block per photo
+    const content = _scanImages.map(img => ({
+      type: 'image',
+      source: { type: 'base64', media_type: img.mime, data: img.base64 }
+    }));
+    content.push({
+      type: 'text',
+      text: `Jsi výživový expert. Z přiložených obrázků (nutriční štítek nebo balení potraviny) vyčti nutriční hodnoty.
 Vrať POUZE JSON objekt, žádný jiný text, bez markdown backticks:
 {
   "name": "název potraviny",
@@ -11817,17 +11878,27 @@ Vrať POUZE JSON objekt, žádný jiný text, bez markdown backticks:
   "note": "krátký komentář co jsi rozpoznal, max 1 věta"
 }
 Pokud hodnotu nelze přečíst, dej 0. Unit je "100g" pokud je štítek na 100g, "100ml" pokud na 100ml, "ks" pokud na kus, "baleni" pokud na celé balení.`
-            }
-          ]
-        }]
+    });
+
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-6',
+        max_tokens: 1000,
+        messages: [{ role: 'user', content }]
       })
     });
 
     const data = await resp.json();
-    if (!resp.ok) throw new Error(data.error?.message || 'API chyba');
+    if (!resp.ok) throw new Error(data.error?.message || `API chyba ${resp.status}`);
 
     const text = data.content?.find(b => b.type === 'text')?.text || '';
-    // Strip possible markdown fences
     const clean = text.replace(/```json|```/gi, '').trim();
     const parsed = JSON.parse(clean);
     scanPopulateForm(parsed);
@@ -11869,6 +11940,14 @@ function scanPopulateForm(d) {
   document.getElementById('scan-jn-date-label').textContent =
     `Jídelníček: ${days[today.getDay()]} ${today.getDate()}. ${months[today.getMonth()]}`;
 
+  // Show form thumbnails row
+  const ft = document.getElementById('scan-form-thumbs');
+  if (ft) {
+    ft.innerHTML = _scanImages.map(img =>
+      `<img src="${img.dataUrl}" style="width:48px;height:48px;border-radius:8px;object-fit:cover;border:1px solid var(--border);">`
+    ).join('');
+  }
+
   scanShowStep('form');
 }
 
@@ -11906,7 +11985,6 @@ function scanAddToJn(food) {
   const today = new Date();
   const key = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   if (!jnPlan[key]) jnPlan[key] = [];
-  const mult = food.unit === 'ks' ? 1 : food.unit === '100ml' ? 1 : 1;
   jnPlan[key].push({
     id: Date.now(), type: 'ostatni', source: 'food',
     name: food.name, unit: food.unit,
@@ -11919,7 +11997,7 @@ function scanAddToJn(food) {
 
 function scanSaveBoth() {
   const food = scanGetFoodObj(); if (!food) return;
-  scanAddToFoods({...food});
+  scanAddToFoods({...food, id: Date.now()});
   scanAddToJn(food);
   jnRenderDays();
   toast('✓ Přidáno do potravin i jídelníčku');
