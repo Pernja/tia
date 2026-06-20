@@ -167,6 +167,80 @@ localStorage.setItem = function(key, value) {
   }
 };
 
+// ── FIX: desetinná čárka na iOS ────────────────────────────────────────────
+// iOS klávesnice u type="number" s českým locale nabízí čárku, ale prohlížeč
+// ji nepřijme jako platnou desetinnou hodnotu (input zůstane prázdný / "0").
+// Řešení: number inputy přepneme na text+inputmode="decimal" (stejná numerická
+// klávesnice na mobilu), live filtrujeme nepovolené znaky a normalizujeme
+// čárku na tečku přímo v .value getteru, takže veškerý existující kód
+// (parseFloat, Number(), template literály) funguje beze změny.
+(function fixDecimalCommaInputs() {
+  // Patch HTMLInputElement.prototype.value: na polích s data-decimal="1"
+  // vrací getter hodnotu s tečkou místo čárky, setter beze změny.
+  const proto = HTMLInputElement.prototype;
+  const desc = Object.getOwnPropertyDescriptor(proto, 'value')
+            || Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+  if (desc && desc.get && desc.set) {
+    Object.defineProperty(proto, 'value', {
+      get: function() {
+        const raw = desc.get.call(this);
+        if (this.dataset && this.dataset.decimal === '1') {
+          return raw.replace(/,/g, '.');
+        }
+        return raw;
+      },
+      set: function(v) { desc.set.call(this, v); },
+      configurable: true,
+    });
+  }
+
+  function convertInput(inp) {
+    if (inp.type !== 'number') return;
+    const step = inp.getAttribute('step');
+    const isInt = step === '1' || (!step && !inp.hasAttribute('step') && false);
+    inp.setAttribute('type', 'text');
+    inp.setAttribute('inputmode', 'decimal');
+    inp.dataset.decimal = '1';
+    if (!inp.hasAttribute('autocomplete')) inp.setAttribute('autocomplete', 'off');
+    inp.addEventListener('input', () => {
+      // Povol číslice, čárku, tečku, mínus (na začátku); odřízni zbytek
+      let v = inp.value;
+      let cleaned = v.replace(/[^0-9.,\-]/g, '');
+      // jen jedna desetinná značka
+      const firstSep = cleaned.search(/[.,]/);
+      if (firstSep !== -1) {
+        const head = cleaned.slice(0, firstSep + 1);
+        const tail = cleaned.slice(firstSep + 1).replace(/[.,]/g, '');
+        cleaned = head + tail;
+      }
+      if (cleaned !== v) inp.value = cleaned;
+    });
+  }
+
+  function scanAndConvert(root) {
+    (root.querySelectorAll ? root.querySelectorAll('input[type="number"]') : [])
+      .forEach(convertInput);
+  }
+
+  // Initial pass
+  document.addEventListener('DOMContentLoaded', () => scanAndConvert(document));
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    scanAndConvert(document);
+  }
+
+  // Watch for dynamically-rendered inputs (most of this app renders via innerHTML)
+  const mo = new MutationObserver(muts => {
+    for (const m of muts) {
+      m.addedNodes.forEach(node => {
+        if (node.nodeType !== 1) return;
+        if (node.matches && node.matches('input[type="number"]')) convertInput(node);
+        scanAndConvert(node);
+      });
+    }
+  });
+  mo.observe(document.documentElement, { childList: true, subtree: true });
+})();
+
 // ── iOS SAFARI FIX: flush pending saves when app goes to background ───────────
 // Safari na iOS může zavřít stránku okamžitě při přepnutí karty/odchodu.
 // Při visibilitychange=hidden synchronizujeme vše co ještě čeká.
