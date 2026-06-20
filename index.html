@@ -4149,11 +4149,17 @@ document.addEventListener('DOMContentLoaded', async () => {
       <!-- Thumbnails + add button -->
       <div id="scan-thumbs-wrap" style="display:none;flex-wrap:wrap;gap:10px;justify-content:center;width:100%;max-width:320px;"></div>
 
-      <!-- Primary photo button -->
-      <label style="display:inline-flex;align-items:center;gap:10px;background:var(--accent);color:var(--accent-text);border:none;border-radius:14px;padding:15px 28px;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.3);">
-        <span style="font-size:20px;">📷</span> Vyfotit / Nahrát
-        <input type="file" id="scan-file-input" accept="image/*" multiple style="display:none" onchange="scanHandleFile(this)">
-      </label>
+      <!-- Two separate buttons: camera + gallery (PWA on iOS doesn't show native picker) -->
+      <div style="display:flex;gap:10px;width:100%;max-width:320px;">
+        <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--accent);color:var(--accent-text);border:none;border-radius:14px;padding:15px 12px;font-size:14px;font-weight:700;cursor:pointer;box-shadow:0 4px 20px rgba(0,0,0,.3);">
+          <span style="font-size:22px;">📷</span> Foťák
+          <input type="file" id="scan-file-input-camera" accept="image/*" capture="environment" multiple style="display:none" onchange="scanHandleFile(this)">
+        </label>
+        <label style="flex:1;display:flex;flex-direction:column;align-items:center;gap:6px;background:var(--surface);color:var(--text);border:1px solid var(--accent);border-radius:14px;padding:15px 12px;font-size:14px;font-weight:700;cursor:pointer;">
+          <span style="font-size:22px;">🖼️</span> Galerie
+          <input type="file" id="scan-file-input" accept="image/*" multiple style="display:none" onchange="scanHandleFile(this)">
+        </label>
+      </div>
 
       <!-- Analyse button – shown only when images selected -->
       <button id="scan-analyse-btn" onclick="scanStart()" style="display:none;background:var(--surface);color:var(--text);border:1px solid var(--accent);border-radius:12px;padding:13px 28px;font-size:15px;font-weight:600;cursor:pointer;width:100%;max-width:320px;">
@@ -11758,6 +11764,8 @@ let _scanImages = []; // { base64, mime, dataUrl }
 function scanReset() {
   _scanImages = [];
   document.getElementById('scan-file-input').value = '';
+  const camInput = document.getElementById('scan-file-input-camera');
+  if (camInput) camInput.value = '';
   scanShowStep('camera');
   scanRenderThumbs();
 }
