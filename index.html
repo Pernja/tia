@@ -18,7 +18,7 @@ const SUPA_TABLE_MAP = {
   'jidlo-2026':      'tia_nakup',
   'jidlo-meals':     'tia_meals',
   'jidlo-jidelnicek':'tia_jidelnicek',
-  // 'jidlo-foods' vyřazeno — tia_foods nyní používá relační model
+  'jidlo-foods':     'tia_foods',
   'jidlo-profil':    'tia_profil',
   'jidlo-aktivity':  'tia_aktivity',
   'jidlo-suplementy':'tia_suplementy',
@@ -7394,34 +7394,11 @@ function setFoodUnit(unit, btn) {
   }
 }
 
-// ── FOODS: relační Supabase (1 řádek = 1 potravina) ─────────────────────────
-
-async function foodsLoadFromSupabase() {
-  if (!_currentUserId) return;
-  const { data, error } = await supa.from('tia_foods')
-    .select('*')
-    .eq('user_id', _currentUserId)
-    .order('created_at', { ascending: true });
-  if (error) { console.warn('foods load error', error); return; }
-  // Mapujeme baleni_g → baleniG aby zbytek appky fungoval beze změny
-  foods = (data || []).map(r => ({
-    id:      r.id,
-    name:    r.name,
-    unit:    r.unit,
-    kcal:    r.kcal,
-    prot:    r.prot,
-    carb:    r.carb,
-    fat:     r.fat,
-    fiber:   r.fiber,
-    cat:     r.cat,
-    price:   r.price,
-    baleniG: r.baleni_g,
-  }));
-  // Cache do localStorage pro případ výpadku sítě (read-only záloha)
-  _origSetItem('jidlo-foods', JSON.stringify(foods));
+function saveFoods() {
+  _origSetItem('jidlo-foods', JSON.stringify(foods)); if (_supaReady && _currentUserId) supaSave('jidlo-foods', foods);
 }
 
-async function addFood() {
+function addFood() {
   const name  = document.getElementById('fd-name').value.trim();
   const kcal  = parseFloat(document.getElementById('fd-kcal').value) || 0;
   const prot  = parseFloat(document.getElementById('fd-prot').value) || 0;
@@ -7433,16 +7410,8 @@ async function addFood() {
   const price = parseFloat(document.getElementById('fd-price').value) || 0;
   if (!name) { document.getElementById('fd-name').focus(); return; }
 
-  const { data, error } = await supa.from('tia_foods').insert({
-    user_id: _currentUserId,
-    name, unit: currentFoodUnit, kcal, prot, carb, fat, fiber, cat, price,
-    baleni_g: baleniG,
-  }).select().single();
-
-  if (error) { toast('✕ Chyba při ukládání: ' + error.message); return; }
-
-  foods.push({ id: data.id, name, unit: currentFoodUnit, kcal, prot, carb, fat, fiber, cat, price, baleniG });
-  _origSetItem('jidlo-foods', JSON.stringify(foods));
+  foods.push({ id: Date.now(), name, unit: currentFoodUnit, kcal, prot, carb, fat, fiber, cat, baleniG, price });
+  saveFoods();
   renderFoods();
   ['fd-name','fd-kcal','fd-prot','fd-carb','fd-fat','fd-fiber','fd-price'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fd-cat').value = '';
@@ -7452,23 +7421,19 @@ async function addFood() {
   toast('✓ Potravina přidána');
 }
 
-async function deleteFood(id) {
+function deleteFood(id) {
   if (!confirm('Smazat tuto potravinu?')) return;
-  const { error } = await supa.from('tia_foods').delete().eq('id', id).eq('user_id', _currentUserId);
-  if (error) { toast('✕ Chyba při mazání: ' + error.message); return; }
   foods = foods.filter(f => f.id !== id);
-  _origSetItem('jidlo-foods', JSON.stringify(foods));
+  saveFoods();
   renderFoods();
   toast('🗑 Potravina smazána');
 }
 
-async function clearAllFoods() {
+function clearAllFoods() {
   if (foods.length === 0) return;
   if (!confirm('Opravdu vymazat všechny potraviny z databáze?')) return;
-  const { error } = await supa.from('tia_foods').delete().eq('user_id', _currentUserId);
-  if (error) { toast('✕ Chyba při mazání: ' + error.message); return; }
   foods = [];
-  _origSetItem('jidlo-foods', JSON.stringify(foods));
+  saveFoods();
   renderFoods();
   toast('🗑 Databáze vymazána');
 }
@@ -7627,15 +7592,12 @@ function updateFoodSelCount() {
   else        { el.classList.add('hidden'); }
 }
 
-async function deleteFoodSelected() {
+function deleteFoodSelected() {
   if (foodSelectedIds.size === 0) return;
   if (!confirm(`Smazat ${foodSelectedIds.size} označených potravin?`)) return;
-  const ids = [...foodSelectedIds];
-  const { error } = await supa.from('tia_foods').delete().in('id', ids).eq('user_id', _currentUserId);
-  if (error) { toast('✕ Chyba při mazání: ' + error.message); return; }
   foods = foods.filter(f => !foodSelectedIds.has(f.id));
   foodSelectedIds.clear();
-  _origSetItem('jidlo-foods', JSON.stringify(foods));
+  saveFoods();
   updateFoodSelCount();
   document.getElementById('food-select-all').checked = false;
   renderFoods();
@@ -7779,7 +7741,7 @@ function confirmFoodEditCat() {
   toast('✓ Kategorie upravena');
 }
 
-async function deleteFoodCat(catId) {
+function deleteFoodCat(catId) {
   const cat = FOOD_CATS.find(c => c.id === catId);
   if (!cat) return;
   const count = foods.filter(f => f.cat === catId).length;
@@ -7788,10 +7750,8 @@ async function deleteFoodCat(catId) {
     : `Smazat kategorii "${cat.emoji} ${cat.label}"?`;
   if (!confirm(msg)) return;
   if (count > 0) {
-    const { error } = await supa.from('tia_foods').update({ cat: '' }).eq('cat', catId).eq('user_id', _currentUserId);
-    if (error) { toast('✕ Chyba při aktualizaci: ' + error.message); return; }
     foods.forEach(f => { if (f.cat === catId) f.cat = ''; });
-    _origSetItem('jidlo-foods', JSON.stringify(foods));
+    saveFoods();
   }
   const idx = FOOD_CATS.findIndex(c => c.id === catId);
   if (idx >= 0) FOOD_CATS.splice(idx, 1);
@@ -7999,30 +7959,27 @@ function cancelFoodEdit() {
   renderFoods();
 }
 
-async function saveFoodEdit(id) {
+function saveFoodEdit(id) {
   const idx = foods.findIndex(f => f.id === id);
   if (idx < 0) return;
   const name = document.getElementById('fe-name').value.trim();
   if (!name) { document.getElementById('fe-name').focus(); return; }
   const feUnit = document.getElementById('fe-unit').value;
-  const updated = {
+  foods[idx] = {
+    ...foods[idx],
     name,
-    unit:     feUnit,
-    cat:      document.getElementById('fe-cat').value,
-    baleni_g: feUnit === 'baleni' ? (parseFloat(document.getElementById('fe-baleni-g').value) || null) : null,
-    kcal:     parseFloat(document.getElementById('fe-kcal').value)  || 0,
-    prot:     parseFloat(document.getElementById('fe-prot').value)  || 0,
-    carb:     parseFloat(document.getElementById('fe-carb').value)  || 0,
-    fat:      parseFloat(document.getElementById('fe-fat').value)   || 0,
-    fiber:    parseFloat(document.getElementById('fe-fiber').value) || 0,
-    price:    parseFloat(document.getElementById('fe-price').value) || 0,
-    updated_at: new Date().toISOString(),
+    unit:    feUnit,
+    cat:     document.getElementById('fe-cat').value,
+    baleniG: feUnit === 'baleni' ? (parseFloat(document.getElementById('fe-baleni-g').value) || null) : null,
+    kcal:    parseFloat(document.getElementById('fe-kcal').value)  || 0,
+    prot:    parseFloat(document.getElementById('fe-prot').value)  || 0,
+    carb:    parseFloat(document.getElementById('fe-carb').value)  || 0,
+    fat:     parseFloat(document.getElementById('fe-fat').value)   || 0,
+    fiber:   parseFloat(document.getElementById('fe-fiber').value) || 0,
+    price:   parseFloat(document.getElementById('fe-price').value) || 0,
   };
-  const { error } = await supa.from('tia_foods').update(updated).eq('id', id).eq('user_id', _currentUserId);
-  if (error) { toast('✕ Chyba při ukládání: ' + error.message); return; }
-  foods[idx] = { ...foods[idx], ...updated, baleniG: updated.baleni_g };
   editingFoodId = null;
-  _origSetItem('jidlo-foods', JSON.stringify(foods));
+  saveFoods();
   renderFoods();
   toast('✓ Potravina upravena');
 }
@@ -11772,7 +11729,7 @@ function vahaRenderHistory() {
 
 <script>
 // ── SUPABASE: Reload all in-memory stores after cloud data is loaded ──────────
-async function reloadAllStores() {
+function reloadAllStores() {
   // Nákupní seznam
   try { items = JSON.parse(localStorage.getItem('jidlo-2026') || '[]'); render(); } catch(e) {}
   // Jídla / recepty
@@ -11783,8 +11740,8 @@ async function reloadAllStores() {
     if (typeof jnFixDateKeys === 'function') jnFixDateKeys();
     if (typeof jnRender === 'function' && document.getElementById('page-jidelnicek')?.classList.contains('active')) jnRender();
   } catch(e) {}
-  // Potraviny DB — načítáme z Supabase (relační model)
-  try { await foodsLoadFromSupabase(); if(typeof renderFoods==='function') renderFoods(); } catch(e) { console.warn('foods reload error', e); }
+  // Potraviny DB
+  try { foods = JSON.parse(localStorage.getItem('jidlo-foods') || '[]'); if(typeof renderFoods==='function') renderFoods(); } catch(e) {}
   // Profil
   try { profilData = JSON.parse(localStorage.getItem('jidlo-profil') || '{}'); if(typeof loadProfil==='function') loadProfil(); } catch(e) {}
   // Váha
@@ -12043,23 +12000,9 @@ function scanGetFoodObj() {
   };
 }
 
-async function scanAddToFoods(food) {
-  const { data, error } = await supa.from('tia_foods').insert({
-    user_id:  _currentUserId,
-    name:     food.name,
-    unit:     food.unit,
-    kcal:     food.kcal,
-    prot:     food.prot,
-    carb:     food.carb,
-    fat:      food.fat,
-    fiber:    food.fiber,
-    cat:      food.cat,
-    price:    food.price,
-    baleni_g: food.baleniG || null,
-  }).select().single();
-  if (error) { toast('✕ Chyba při ukládání: ' + error.message); return; }
-  foods.push({ ...food, id: data.id });
-  _origSetItem('jidlo-foods', JSON.stringify(foods));
+function scanAddToFoods(food) {
+  foods.push(food);
+  saveFoods();
   renderFoods();
 }
 
@@ -12077,9 +12020,9 @@ function scanAddToJn(food) {
   jnSave();
 }
 
-async function scanSaveBoth() {
+function scanSaveBoth() {
   const food = scanGetFoodObj(); if (!food) return;
-  await scanAddToFoods(food);
+  scanAddToFoods({...food, id: Date.now()});
   scanAddToJn(food);
   jnRenderDays();
   toast('✓ Přidáno do potravin i jídelníčku');
@@ -12087,9 +12030,9 @@ async function scanSaveBoth() {
   switchPage('jidelnicek');
 }
 
-async function scanSaveFoodsOnly() {
+function scanSaveFoodsOnly() {
   const food = scanGetFoodObj(); if (!food) return;
-  await scanAddToFoods(food);
+  scanAddToFoods(food);
   toast('✓ Potravina přidána do databáze');
   scanReset();
   switchPage('jidla');
