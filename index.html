@@ -3043,11 +3043,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   .jn-donuts-row {
     display: flex; justify-content: space-around; align-items: flex-start;
     padding: 16px 14px 14px; border-top: 1px solid var(--border);
-    gap: 6px;
+    gap: 6px; flex-wrap: wrap; row-gap: 16px;
   }
   .jn-donut-wrap {
     display: flex; flex-direction: column; align-items: center; gap: 6px;
-    flex: 1;
+    flex: 1 1 90px; max-width: 120px; min-width: 78px;
   }
   .jn-donut-svg-wrap {
     position: relative; width: 100px; height: 100px;
@@ -3926,12 +3926,20 @@ document.addEventListener('DOMContentLoaded', async () => {
           <input id="fd-carb" type="number" min="0" step="0.1" placeholder="0">
         </div>
         <div class="field">
+          <label id="fd-sugar-label">z toho cukry (g)</label>
+          <input id="fd-sugar" type="number" min="0" step="0.1" placeholder="0">
+        </div>
+        <div class="field">
           <label id="fd-fat-label">Tuky (g)</label>
           <input id="fd-fat" type="number" min="0" step="0.1" placeholder="0">
         </div>
         <div class="field">
           <label id="fd-fiber-label">Vláknina (g)</label>
           <input id="fd-fiber" type="number" min="0" step="0.1" placeholder="0">
+        </div>
+        <div class="field">
+          <label id="fd-salt-label">Sůl (g)</label>
+          <input id="fd-salt" type="number" min="0" step="0.01" placeholder="0">
         </div>
         <div class="field">
           <label>⌀ Cena (Kč)</label>
@@ -3987,8 +3995,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             <th class="r ft-sortable" onclick="foodSortBy('kcal')" id="fth-kcal">Kcal<span class="ft-sort-arrow">↕</span></th>
             <th class="r ft-sortable" onclick="foodSortBy('prot')" id="fth-prot">Bílkoviny<span class="ft-sort-arrow">↕</span></th>
             <th class="r ft-sortable" onclick="foodSortBy('carb')" id="fth-carb">Sacharidy<span class="ft-sort-arrow">↕</span></th>
+            <th class="r ft-sortable" onclick="foodSortBy('sugar')" id="fth-sugar">z toho cukry<span class="ft-sort-arrow">↕</span></th>
             <th class="r ft-sortable" onclick="foodSortBy('fat')" id="fth-fat">Tuky<span class="ft-sort-arrow">↕</span></th>
             <th class="r ft-sortable" onclick="foodSortBy('fiber')" id="fth-fiber">Vláknina<span class="ft-sort-arrow">↕</span></th>
+            <th class="r ft-sortable" onclick="foodSortBy('salt')" id="fth-salt">Sůl<span class="ft-sort-arrow">↕</span></th>
             <th class="r ft-sortable" onclick="foodSortBy('price')" id="fth-price">⌀ Cena<span class="ft-sort-arrow">↕</span></th>
             <th class="r" style="">Akce</th>
           </tr>
@@ -4305,12 +4315,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             <input id="scan-carb" type="number" class="scan-input" placeholder="0">
           </div>
           <div class="scan-field-group">
+            <label class="scan-label">z toho cukry (g)</label>
+            <input id="scan-sugar" type="number" class="scan-input" placeholder="0">
+          </div>
+          <div class="scan-field-group">
             <label class="scan-label">Tuky (g)</label>
             <input id="scan-fat" type="number" class="scan-input" placeholder="0">
           </div>
           <div class="scan-field-group">
             <label class="scan-label">Vláknina (g)</label>
             <input id="scan-fiber" type="number" class="scan-input" placeholder="0">
+          </div>
+          <div class="scan-field-group">
+            <label class="scan-label">Sůl (g)</label>
+            <input id="scan-salt" type="number" class="scan-input" placeholder="0">
           </div>
           <div class="scan-field-group">
             <label class="scan-label">Cena (Kč)</label>
@@ -4650,6 +4668,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         <div class="jn-edit-field">
           <label>Vláknina (g)</label>
           <input type="number" id="jne-fiber" min="0" step="0.1" placeholder="0">
+        </div>
+        <div class="jn-edit-field">
+          <label>z toho cukry (g)</label>
+          <input type="number" id="jne-sugar" min="0" step="0.1" placeholder="0">
+        </div>
+        <div class="jn-edit-field">
+          <label>Sůl (g)</label>
+          <input type="number" id="jne-salt" min="0" step="0.01" placeholder="0">
         </div>
         <div class="jn-edit-field">
           <label>Cena (Kč)</label>
@@ -5402,7 +5428,32 @@ document.addEventListener('DOMContentLoaded', async () => {
             </div>
           </div>
 
-          <button class="btn-save-custom-goal" onclick="cgSave()">✓ Uložit vlastní cíl</button>
+          <!-- Vláknina a sůl — samostatné denní cíle (nepočítají se z váhy) -->
+          <div class="cg-section" style="margin-top:18px;">
+            <div class="cg-section-title">// Vláknina &amp; sůl <span style="font-weight:400;color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0;">— samostatné denní cíle, nezávislé na makrech</span></div>
+            <div class="cg-macro-grid" style="grid-template-columns:1fr 1fr;">
+              <div class="cg-macro-item">
+                <div class="cg-macro-label"><span class="cg-macro-dot" style="background:#7fb88a"></span> <span style="color:#7fb88a">Vláknina</span></div>
+                <div class="cg-macro-input-row">
+                  <input class="cg-macro-input" id="cg-fiber-goal" type="number" min="0" step="1" placeholder="např. 30" oninput="cgExtraRecalc()">
+                  <span class="cg-macro-unit-lbl">g / den</span>
+                </div>
+                <div class="cg-macro-result" id="cg-fiber-goal-result" style="color:#7fb88a">—</div>
+              </div>
+              <div class="cg-macro-item">
+                <div class="cg-macro-label"><span class="cg-macro-dot" style="background:#6fa8c7"></span> <span style="color:#6fa8c7">Sůl</span></div>
+                <div class="cg-macro-input-row">
+                  <input class="cg-macro-input" id="cg-salt-goal" type="number" min="0" step="0.1" placeholder="např. 5" oninput="cgExtraRecalc()">
+                  <span class="cg-macro-unit-lbl">g / den</span>
+                </div>
+                <div class="cg-macro-result" id="cg-salt-goal-result" style="color:#6fa8c7">—</div>
+              </div>
+            </div>
+            <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;">
+              Doporučení (orientačně): vláknina ~30 g/den, sůl max ~5 g/den. Nech prázdné, pokud cíl nechceš sledovat — koláč pak ukáže jen snědené množství bez procent. Cukry se nenastavují, jen se zobrazují ve statistikách.
+            </div>
+            <button class="btn-save-custom-goal" style="margin-top:12px;" onclick="cgSaveExtraGoals()">✓ Uložit cíl vlákniny a soli</button>
+          </div>
         </div>
       </div><!-- /tdee-custom-panel -->
 
@@ -6748,10 +6799,10 @@ function saveMealsStore() {
 function perGram(food) {
   const unit = food.unit || '100g';
   if (unit === 'ks' || unit === 'baleni') {
-    return { kcal: food.kcal, prot: food.prot, carb: food.carb, fat: food.fat, fiber: food.fiber || 0, perUnit: true };
+    return { kcal: food.kcal, prot: food.prot, carb: food.carb, fat: food.fat, fiber: food.fiber || 0, sugar: food.sugar || 0, salt: food.salt || 0, perUnit: true };
   }
   const div = (unit === '1kg' || unit === '1l') ? 1000 : (unit === '10g' ? 10 : 100);
-  return { kcal: food.kcal / div, prot: food.prot / div, carb: food.carb / div, fat: food.fat / div, fiber: (food.fiber || 0) / div, perUnit: false };
+  return { kcal: food.kcal / div, prot: food.prot / div, carb: food.carb / div, fat: food.fat / div, fiber: (food.fiber || 0) / div, sugar: (food.sugar || 0) / div, salt: (food.salt || 0) / div, perUnit: false };
 }
 
 // Calculate price for a given amount of food (amount always in base units: g/ml/ks/baleni)
@@ -6959,6 +7010,8 @@ function addIngredient() {
     carb:  +(pg.carb  * amount).toFixed(1),
     fat:   +(pg.fat   * amount).toFixed(1),
     fiber: +(pg.fiber * amount).toFixed(1),
+    sugar: +(pg.sugar * amount).toFixed(1),
+    salt:  +(pg.salt  * amount).toFixed(2),
     price: +calcIngPrice(food, amount).toFixed(2),
   });
   document.getElementById('ing-search').value = '';
@@ -7034,8 +7087,9 @@ function saveMeal() {
   const tot = builderIngs.reduce((a, i) => ({
     kcal: a.kcal + i.kcal, prot: a.prot + i.prot,
     carb: a.carb + i.carb, fat:  a.fat  + i.fat,
+    fiber: a.fiber + (i.fiber || 0), sugar: a.sugar + (i.sugar || 0), salt: a.salt + (i.salt || 0),
     price: a.price + (i.price || 0),
-  }), { kcal:0, prot:0, carb:0, fat:0, price:0 });
+  }), { kcal:0, prot:0, carb:0, fat:0, fiber:0, sugar:0, salt:0, price:0 });
 
   if (editingMealId !== null) {
     const idx = meals.findIndex(m => m.id === editingMealId);
@@ -7378,6 +7432,8 @@ function setFoodUnit(unit, btn) {
     document.getElementById('fd-carb-label').textContent  = 'Sacharidy (g) / ks';
     document.getElementById('fd-fat-label').textContent   = 'Tuky (g) / ks';
     document.getElementById('fd-fiber-label').textContent = 'Vláknina (g) / ks';
+    document.getElementById('fd-sugar-label').textContent = 'z toho cukry (g) / ks';
+    document.getElementById('fd-salt-label').textContent  = 'Sůl (g) / ks';
   } else if (isBaleni) {
     const balSuffix = isBaleniML ? '/ bal. (ml)' : '/ bal. (g)';
     document.getElementById('fd-kcal-label').textContent  = `Kcal ${balSuffix}`;
@@ -7385,12 +7441,16 @@ function setFoodUnit(unit, btn) {
     document.getElementById('fd-carb-label').textContent  = `Sacharidy ${balSuffix}`;
     document.getElementById('fd-fat-label').textContent   = `Tuky ${balSuffix}`;
     document.getElementById('fd-fiber-label').textContent = `Vláknina ${balSuffix}`;
+    document.getElementById('fd-sugar-label').textContent = `z toho cukry ${balSuffix}`;
+    document.getElementById('fd-salt-label').textContent  = `Sůl ${balSuffix}`;
   } else {
     document.getElementById('fd-kcal-label').textContent  = 'Kcal';
     document.getElementById('fd-prot-label').textContent  = 'Bílkoviny (g)';
     document.getElementById('fd-carb-label').textContent  = 'Sacharidy (g)';
     document.getElementById('fd-fat-label').textContent   = 'Tuky (g)';
     document.getElementById('fd-fiber-label').textContent = 'Vláknina (g)';
+    document.getElementById('fd-sugar-label').textContent = 'z toho cukry (g)';
+    document.getElementById('fd-salt-label').textContent  = 'Sůl (g)';
   }
 }
 
@@ -7405,15 +7465,17 @@ function addFood() {
   const carb  = parseFloat(document.getElementById('fd-carb').value) || 0;
   const fat   = parseFloat(document.getElementById('fd-fat').value) || 0;
   const fiber = parseFloat(document.getElementById('fd-fiber').value) || 0;
+  const sugar = parseFloat(document.getElementById('fd-sugar').value) || 0;
+  const salt  = parseFloat(document.getElementById('fd-salt').value) || 0;
   const cat   = document.getElementById('fd-cat').value;
   const baleniG = currentFoodUnit === 'baleni' ? (parseFloat(document.getElementById('fd-baleni-g').value) || null) : null;
   const price = parseFloat(document.getElementById('fd-price').value) || 0;
   if (!name) { document.getElementById('fd-name').focus(); return; }
 
-  foods.push({ id: Date.now(), name, unit: currentFoodUnit, kcal, prot, carb, fat, fiber, cat, baleniG, price });
+  foods.push({ id: Date.now(), name, unit: currentFoodUnit, kcal, prot, carb, fat, fiber, sugar, salt, cat, baleniG, price });
   saveFoods();
   renderFoods();
-  ['fd-name','fd-kcal','fd-prot','fd-carb','fd-fat','fd-fiber','fd-price'].forEach(id => document.getElementById(id).value = '');
+  ['fd-name','fd-kcal','fd-prot','fd-carb','fd-fat','fd-fiber','fd-sugar','fd-salt','fd-price'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('fd-cat').value = '';
   document.getElementById('fd-cat-text').value = '';
   document.getElementById('fd-baleni-g').value = '';
@@ -7831,7 +7893,7 @@ function renderFoods() {
   }
 
   // Update header arrows
-  ['name','kcal','prot','carb','fat','fiber'].forEach(k => {
+  ['name','kcal','prot','carb','sugar','fat','fiber','salt'].forEach(k => {
     const th = document.getElementById('fth-' + k);
     if (!th) return;
     th.classList.toggle('ft-sort-active', foodSortKey === k);
@@ -7840,7 +7902,7 @@ function renderFoods() {
   });
 
   if (visibleFoods.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9"><div class="empty">' + (foodSearch ? 'Žádná shoda pro „'+foodSearch+'"' : foodCatFilterActive.size > 0 ? 'Žádné potraviny v těchto kategoriích' : 'Žádné potraviny v databázi. Přidej první! 🥗') + '</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty">' + (foodSearch ? 'Žádná shoda pro „'+foodSearch+'"' : foodCatFilterActive.size > 0 ? 'Žádné potraviny v těchto kategoriích' : 'Žádné potraviny v databázi. Přidej první! 🥗') + '</div></td></tr>';
     document.getElementById('fs-count').textContent = '0';
     ['fs-kcal','fs-prot','fs-carb','fs-fat'].forEach(id => document.getElementById(id).textContent = '—');
     const pg2 = document.getElementById('food-pagination'); if (pg2) pg2.innerHTML = '';
@@ -7848,7 +7910,7 @@ function renderFoods() {
   }
 
   if (foods.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9"><div class="empty">Žádné potraviny v databázi. Přidej první! 🥗</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11"><div class="empty">Žádné potraviny v databázi. Přidej první! 🥗</div></td></tr>';
     document.getElementById('fs-count').textContent = '0';
     ['fs-kcal','fs-prot','fs-carb','fs-fat'].forEach(id => document.getElementById(id).textContent = '—');
     return;
@@ -7905,8 +7967,10 @@ function renderFoods() {
           <td class="r"><div class="ft-edit-cell"><input id="fe-kcal"  type="number" value="${f.kcal}"  style="width:100%;text-align:center"></div></td>
           <td class="r"><div class="ft-edit-cell"><input id="fe-prot"  type="number" value="${f.prot}"  style="width:100%;text-align:center"></div></td>
           <td class="r"><div class="ft-edit-cell"><input id="fe-carb"  type="number" value="${f.carb}"  style="width:100%;text-align:center"></div></td>
+          <td class="r"><div class="ft-edit-cell"><input id="fe-sugar" type="number" value="${f.sugar || 0}" style="width:100%;text-align:center"></div></td>
           <td class="r"><div class="ft-edit-cell"><input id="fe-fat"   type="number" value="${f.fat}"   style="width:100%;text-align:center"></div></td>
           <td class="r"><div class="ft-edit-cell"><input id="fe-fiber" type="number" value="${f.fiber || 0}" style="width:100%;text-align:center"></div></td>
+          <td class="r"><div class="ft-edit-cell"><input id="fe-salt"  type="number" step="0.01" value="${f.salt || 0}" style="width:100%;text-align:center"></div></td>
           <td class="r"><div class="ft-edit-cell"><input id="fe-price" type="number" min="0" step="0.1" value="${f.price || ''}" placeholder="0" style="width:100%;text-align:center"></div></td>
           <td class="r" style=""><div class="view-cell" style="gap:4px">
             <button class="btn-icon save"   onclick="saveFoodEdit(${f.id})" title="Uložit">✓</button>
@@ -7924,8 +7988,10 @@ function renderFoods() {
         <td class="r"><div class="view-cell"><span class="kcal-val">${f.kcal > 0 ? f.kcal : '—'}</span></div></td>
         <td class="r"><div class="view-cell"><span class="macro-val macro-p">${fmt1(f.prot)} g</span></div></td>
         <td class="r"><div class="view-cell"><span class="macro-val macro-c">${fmt1(f.carb)} g</span></div></td>
+        <td class="r"><div class="view-cell"><span class="macro-val">${fmt1(f.sugar)} g</span></div></td>
         <td class="r"><div class="view-cell"><span class="macro-val macro-f">${fmt1(f.fat)} g</span></div></td>
         <td class="r"><div class="view-cell"><span class="macro-val">${fmt1(f.fiber)} g</span></div></td>
+        <td class="r"><div class="view-cell"><span class="macro-val">${fmt1(f.salt)} g</span></div></td>
         <td class="r"><div class="view-cell"><span class="price-val${f.price?` has-price`:``}">${f.price ? foodPriceDisplay(f.price) : '—'}</span></div></td>
         <td class="r" style=""><div class="view-cell" style="gap:4px">
           <button class="btn-icon" onclick="editFood(${f.id})" title="Upravit">✏</button>
@@ -7976,6 +8042,8 @@ function saveFoodEdit(id) {
     carb:    parseFloat(document.getElementById('fe-carb').value)  || 0,
     fat:     parseFloat(document.getElementById('fe-fat').value)   || 0,
     fiber:   parseFloat(document.getElementById('fe-fiber').value) || 0,
+    sugar:   parseFloat(document.getElementById('fe-sugar').value) || 0,
+    salt:    parseFloat(document.getElementById('fe-salt').value)  || 0,
     price:   parseFloat(document.getElementById('fe-price').value) || 0,
   };
   editingFoodId = null;
@@ -7988,9 +8056,9 @@ function saveFoodEdit(id) {
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter' && document.getElementById('page-jidla').classList.contains('active')) {
     const focused = document.activeElement;
-    if (editingFoodId && focused && ['fe-name','fe-kcal','fe-prot','fe-carb','fe-fat','fe-fiber','fe-unit','fe-price'].includes(focused.id)) {
+    if (editingFoodId && focused && ['fe-name','fe-kcal','fe-prot','fe-carb','fe-fat','fe-fiber','fe-sugar','fe-salt','fe-unit','fe-price'].includes(focused.id)) {
       saveFoodEdit(editingFoodId);
-    } else if (!editingFoodId && focused && ['fd-name','fd-kcal','fd-prot','fd-carb','fd-fat','fd-fiber'].includes(focused.id)) {
+    } else if (!editingFoodId && focused && ['fd-name','fd-kcal','fd-prot','fd-carb','fd-fat','fd-fiber','fd-sugar','fd-salt'].includes(focused.id)) {
       addFood();
     }
   }
@@ -8677,6 +8745,12 @@ function cgLoad() {
       if (el && pd.cgInputs[k] != null) el.value = pd.cgInputs[k];
     });
   }
+  // Samostatné cíle vlákniny a soli
+  const fgEl = document.getElementById('cg-fiber-goal');
+  const sgEl = document.getElementById('cg-salt-goal');
+  if (fgEl && pd.fiberGoal != null) fgEl.value = pd.fiberGoal;
+  if (sgEl && pd.saltGoal  != null) sgEl.value = pd.saltGoal;
+  cgExtraRecalc();
   // Show TDEE suggestion in preset button
   const oldMode = profilData.tdeeMode;
   profilData.tdeeMode = 'auto';
@@ -8701,6 +8775,27 @@ function cgSave() {
   };
   try { _origSetItem('jidlo-profil', JSON.stringify(profilData)); if (_supaReady && _currentUserId) supaSave('jidlo-profil', profilData); } catch(e) {}
   toast('✓ Vlastní cíl uložen a aktivován');
+}
+
+// Vláknina & sůl — živý náhled pod políčky
+function cgExtraRecalc() {
+  const fg = parseFloat(document.getElementById('cg-fiber-goal')?.value);
+  const sg = parseFloat(document.getElementById('cg-salt-goal')?.value);
+  const fr = document.getElementById('cg-fiber-goal-result');
+  const sr = document.getElementById('cg-salt-goal-result');
+  if (fr) fr.textContent = (!isNaN(fg) && fg > 0) ? `${fg} g / den` : 'nesleduje se';
+  if (sr) sr.textContent = (!isNaN(sg) && sg > 0) ? `${sg} g / den` : 'nesleduje se';
+}
+
+function cgSaveExtraGoals() {
+  const fg = document.getElementById('cg-fiber-goal')?.value;
+  const sg = document.getElementById('cg-salt-goal')?.value;
+  profilData.fiberGoal = (fg !== '' && fg != null) ? parseFloat(fg) : null;
+  profilData.saltGoal  = (sg !== '' && sg != null) ? parseFloat(sg) : null;
+  try { _origSetItem('jidlo-profil', JSON.stringify(profilData)); if (_supaReady && _currentUserId) supaSave('jidlo-profil', profilData); } catch(e) {}
+  cgExtraRecalc();
+  if (typeof jnRender === 'function') jnRender();
+  toast('✓ Cíl vlákniny a soli uložen');
 }
 let jnPlan = JSON.parse(localStorage.getItem('jidlo-jidelnicek') || '{}');
 
@@ -8932,6 +9027,19 @@ function jnGetPlanMacros() {
   return { prot: protG, carb: carbG, fat: fatG };
 }
 
+// Samostatné denní cíle pro vlákninu a sůl (nezávislé na makro % / g-na-kg).
+// Vrací { fiber, salt } v gramech (null = cíl nenastaven → koláč se zobrazí bez %).
+function jnGetExtraGoals() {
+  const pd = (typeof profilData !== 'undefined' && profilData)
+    ? profilData : JSON.parse(localStorage.getItem('jidlo-profil') || '{}');
+  const fiber = (pd.fiberGoal != null && pd.fiberGoal !== '') ? parseFloat(pd.fiberGoal) : null;
+  const salt  = (pd.saltGoal  != null && pd.saltGoal  !== '') ? parseFloat(pd.saltGoal)  : null;
+  return {
+    fiber: (fiber != null && !isNaN(fiber) && fiber > 0) ? fiber : null,
+    salt:  (salt  != null && !isNaN(salt)  && salt  > 0) ? salt  : null,
+  };
+}
+
 let jnView = 'list'; // 'list' nebo 'tile'
 
 function jnSetView(v) {
@@ -9118,17 +9226,39 @@ function jnRenderDays() {
     let donutsHtml = '';
     if (isExp && entries.length > 0) {
       const macros = jnGetPlanMacros();
-      const totalProt = entries.reduce((s,e) => s + (e.prot||0), 0);
-      const totalCarb = entries.reduce((s,e) => s + (e.carb||0), 0);
-      const totalFat  = entries.reduce((s,e) => s + (e.fat||0), 0);
+      const extraGoals = jnGetExtraGoals();
+      const totalProt  = entries.reduce((s,e) => s + (e.prot||0), 0);
+      const totalCarb  = entries.reduce((s,e) => s + (e.carb||0), 0);
+      const totalFat   = entries.reduce((s,e) => s + (e.fat||0), 0);
+      const totalFiber = entries.reduce((s,e) => s + (e.fiber||0), 0);
+      const totalSugar = entries.reduce((s,e) => s + (e.sugar||0), 0);
+      const totalSalt  = entries.reduce((s,e) => s + (e.salt||0), 0);
 
       function donut(id, label, eaten, plan, color, unit='g') {
-        const pctRaw = plan > 0 ? eaten / plan * 100 : 0;
-        const pct = Math.min(100, pctRaw); // visual ring capped at 100%
         const r = 40, circ = 2 * Math.PI * r;
         const isKcal = unit === 'kcal';
-        const eatenRound = isKcal ? Math.round(eaten) : eaten.toFixed(1);
-        const planRound  = isKcal ? Math.round(plan)  : Math.round(plan);
+        const dec = unit === 'g' && eaten < 10 ? (Math.round(eaten*100)/100) : null; // salt precision
+        const eatenRound = isKcal ? Math.round(eaten) : (dec !== null ? dec : eaten.toFixed(1));
+        // No-goal donut (plan === null): show amount, neutral full ring, no %
+        if (plan === null) {
+          return `<div class="jn-donut-wrap">
+            <div class="jn-donut-svg-wrap">
+              <svg width="100" height="100" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--border)" stroke-width="8"/>
+                <circle cx="50" cy="50" r="${r}" fill="none" stroke="${color}" stroke-width="8"
+                  stroke-dasharray="${circ.toFixed(2)} 0" stroke-dashoffset="${(circ*0.25).toFixed(2)}"
+                  stroke-linecap="round" opacity="0.55"/>
+              </svg>
+              <div class="jn-donut-center">
+                <span class="jn-donut-pct" style="color:${color};font-size:15px;">${eatenRound}<span class="jn-donut-unit">${unit}</span></span>
+              </div>
+            </div>
+            <div class="jn-donut-label">${label}</div>
+            <div class="jn-donut-plan">za den</div>
+          </div>`;
+        }
+        const pctRaw = plan > 0 ? eaten / plan * 100 : 0;
+        const planRound  = Math.round(plan);
         const pctRound = Math.round(pctRaw); // show real % including over 100
         // Over 100% color warning
         const strokeColor = pctRaw > 100 ? 'var(--accent3)' : color;
@@ -9157,6 +9287,9 @@ function jnRenderDays() {
         ${donut('jnd-prot-'+dk, 'Bílkoviny', totalProt, macros.prot,   'var(--accent3)')}
         ${donut('jnd-carb-'+dk, 'Sacharidy', totalCarb, macros.carb,   'var(--accent2)')}
         ${donut('jnd-fat-'+dk,  'Tuky',      totalFat,  macros.fat,    'var(--accent4)')}
+        ${donut('jnd-sugar-'+dk,'z toho cukry', totalSugar, null,      '#e08fc0')}
+        ${donut('jnd-fiber-'+dk,'Vláknina',  totalFiber, extraGoals.fiber || null, '#7fb88a')}
+        ${donut('jnd-salt-'+dk, 'Sůl',       totalSalt,  extraGoals.salt || null,  '#6fa8c7')}
       </div>`;
     }
 
@@ -9187,7 +9320,7 @@ function jnAnimateDonuts() {
   const r = 40, circ = 2 * Math.PI * r;
   document.querySelectorAll('.jn-donuts-row[data-animate]').forEach(row => {
     const dk = row.dataset.animate;
-    ['kcal','prot','carb','fat'].forEach((macro, macroIdx) => {
+    ['kcal','prot','carb','fat','sugar','fiber','salt'].forEach((macro, macroIdx) => {
       const circle = document.getElementById(`jnd-${macro}-${dk}`);
       if (!circle) return;
       const wrap = circle.closest('.jn-donut-wrap');
@@ -9253,7 +9386,11 @@ function jnTileClick(key) {
   const totalProt = entries.reduce((s,e) => s + (e.prot||0), 0);
   const totalCarb = entries.reduce((s,e) => s + (e.carb||0), 0);
   const totalFat  = entries.reduce((s,e) => s + (e.fat||0), 0);
+  const totalFiber= entries.reduce((s,e) => s + (e.fiber||0), 0);
+  const totalSugar= entries.reduce((s,e) => s + (e.sugar||0), 0);
+  const totalSalt = entries.reduce((s,e) => s + (e.salt||0), 0);
   const totalPrice= entries.reduce((s,e) => s + (e.price||0), 0);
+  const extraGoals = jnGetExtraGoals();
 
   const d = new Date(key);
   const dayLabel = `${JN_DOW[d.getDay()===0?6:d.getDay()-1]}, ${d.getDate()}. ${JN_MONTHS_GEN[d.getMonth()]} ${d.getFullYear()}`;
@@ -9276,12 +9413,29 @@ function jnTileClick(key) {
 
   // Macro donuts
   function donut(id, label, eaten, plan, color, unit='g') {
-    const pctRaw = plan > 0 ? eaten / plan * 100 : 0;
-    const pct = Math.min(100, pctRaw);
     const r = 40, circ = 2 * Math.PI * r;
     const isKcal = unit === 'kcal';
-    const eatenRound = isKcal ? Math.round(eaten) : eaten.toFixed(1);
-    const planRound  = isKcal ? Math.round(plan)  : Math.round(plan);
+    const dec = unit === 'g' && eaten < 10 ? (Math.round(eaten*100)/100) : null;
+    const eatenRound = isKcal ? Math.round(eaten) : (dec !== null ? dec : eaten.toFixed(1));
+    if (plan === null) {
+      return `<div class="jn-donut-wrap">
+        <div class="jn-donut-svg-wrap">
+          <svg width="100" height="100" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="${r}" fill="none" stroke="var(--border)" stroke-width="8"/>
+            <circle cx="50" cy="50" r="${r}" fill="none" stroke="${color}" stroke-width="8"
+              stroke-dasharray="${circ.toFixed(2)} 0" stroke-dashoffset="${(circ*0.25).toFixed(2)}"
+              stroke-linecap="round" opacity="0.55"/>
+          </svg>
+          <div class="jn-donut-center">
+            <span class="jn-donut-pct" style="color:${color};font-size:15px;">${eatenRound}<span class="jn-donut-unit">${unit}</span></span>
+          </div>
+        </div>
+        <div class="jn-donut-label">${label}</div>
+        <div class="jn-donut-plan">za den</div>
+      </div>`;
+    }
+    const pctRaw = plan > 0 ? eaten / plan * 100 : 0;
+    const planRound  = Math.round(plan);
     const pctRound = Math.round(pctRaw);
     const strokeColor = pctRaw > 100 ? 'var(--accent3)' : color;
     return `<div class="jn-donut-wrap">
@@ -9309,6 +9463,9 @@ function jnTileClick(key) {
     ${donut('jnd-prot-'+dk, 'Bílkoviny', totalProt, macros.prot,   'var(--accent3)')}
     ${donut('jnd-carb-'+dk, 'Sacharidy', totalCarb, macros.carb,   'var(--accent2)')}
     ${donut('jnd-fat-'+dk,  'Tuky',      totalFat,  macros.fat,    'var(--accent4)')}
+    ${donut('jnd-sugar-'+dk,'z toho cukry', totalSugar, null,      '#e08fc0')}
+    ${donut('jnd-fiber-'+dk,'Vláknina',  totalFiber, extraGoals.fiber || null, '#7fb88a')}
+    ${donut('jnd-salt-'+dk, 'Sůl',       totalSalt,  extraGoals.salt || null,  '#6fa8c7')}
   </div>` : '';
 
   // Entries list
@@ -9427,6 +9584,8 @@ function jnOpenEntryEdit(dateKey, idx) {
     origCarb:  entry.carb  != null ? entry.carb  : null,
     origFat:   entry.fat   != null ? entry.fat   : null,
     origFiber: entry.fiber != null ? entry.fiber : null,
+    origSugar: entry.sugar != null ? entry.sugar : null,
+    origSalt:  entry.salt  != null ? entry.salt  : null,
     origPrice: entry.price != null ? entry.price : null,
   };
 
@@ -9436,6 +9595,8 @@ function jnOpenEntryEdit(dateKey, idx) {
   document.getElementById('jne-carb').value  = entry.carb  != null ? entry.carb  : '';
   document.getElementById('jne-fat').value   = entry.fat   != null ? entry.fat   : '';
   document.getElementById('jne-fiber').value = entry.fiber != null ? entry.fiber : '';
+  document.getElementById('jne-sugar').value = entry.sugar != null ? entry.sugar : '';
+  document.getElementById('jne-salt').value  = entry.salt  != null ? entry.salt  : '';
   document.getElementById('jne-price').value = entry.price != null ? entry.price : '';
   document.getElementById('jne-grams').value = displayGrams;
 
@@ -9450,7 +9611,7 @@ function jnCloseEntryEdit() {
 
 function jnSaveEntryEdit() {
   if (!_jnEditTarget) return;
-  const { dateKey, idx, origGrams, origKcal, origProt, origCarb, origFat, origFiber, origPrice } = _jnEditTarget;
+  const { dateKey, idx, origGrams, origKcal, origProt, origCarb, origFat, origFiber, origSugar, origSalt, origPrice } = _jnEditTarget;
   if (!jnPlan[dateKey]?.[idx]) return;
 
   const parseNum = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? undefined : v; };
@@ -9471,6 +9632,8 @@ function jnSaveEntryEdit() {
     const carbInField  = parseNum('jne-carb');
     const fatInField   = parseNum('jne-fat');
     const fiberInField = parseNum('jne-fiber');
+    const sugarInField = parseNum('jne-sugar');
+    const saltInField  = parseNum('jne-salt');
     const priceInField = parseNum('jne-price');
 
     // Použij hodnotu z políčka pokud se liší od originálu (uživatel ji změnil ručně),
@@ -9480,6 +9643,8 @@ function jnSaveEntryEdit() {
     const baseCarb  = (carbInField  !== undefined && carbInField  !== origCarb)  ? null : origCarb;
     const baseFat   = (fatInField   !== undefined && fatInField   !== origFat)   ? null : origFat;
     const baseFiber = (fiberInField !== undefined && fiberInField !== origFiber) ? null : origFiber;
+    const baseSugar = (sugarInField !== undefined && sugarInField !== origSugar) ? null : origSugar;
+    const baseSalt  = (saltInField  !== undefined && saltInField  !== origSalt)  ? null : origSalt;
     const basePrice = (priceInField !== undefined && priceInField !== origPrice) ? null : origPrice;
 
     if (baseKcal  !== null) entry.kcal  = Math.round(baseKcal  * ratio * 10) / 10; else if (kcalInField  !== undefined) entry.kcal  = kcalInField;  else delete entry.kcal;
@@ -9487,6 +9652,8 @@ function jnSaveEntryEdit() {
     if (baseCarb  !== null) entry.carb  = Math.round(baseCarb  * ratio * 10) / 10; else if (carbInField  !== undefined) entry.carb  = carbInField;  else delete entry.carb;
     if (baseFat   !== null) entry.fat   = Math.round(baseFat   * ratio * 10) / 10; else if (fatInField   !== undefined) entry.fat   = fatInField;   else delete entry.fat;
     if (baseFiber !== null) entry.fiber = Math.round(baseFiber * ratio * 10) / 10; else if (fiberInField !== undefined) entry.fiber = fiberInField; else delete entry.fiber;
+    if (baseSugar !== null) entry.sugar = Math.round(baseSugar * ratio * 10) / 10; else if (sugarInField !== undefined) entry.sugar = sugarInField; else delete entry.sugar;
+    if (baseSalt  !== null) entry.salt  = Math.round(baseSalt  * ratio * 100) / 100; else if (saltInField !== undefined) entry.salt  = saltInField;  else delete entry.salt;
     if (basePrice !== null) entry.price = Math.round(basePrice * ratio * 10) / 10; else if (priceInField !== undefined) entry.price = priceInField; else delete entry.price;
 
     // Ulož gramáž i jako amount (pro zpětnou kompatibilitu s potraviny)
@@ -9499,6 +9666,8 @@ function jnSaveEntryEdit() {
     const carb  = parseNum('jne-carb');
     const fat   = parseNum('jne-fat');
     const fiber = parseNum('jne-fiber');
+    const sugar = parseNum('jne-sugar');
+    const salt  = parseNum('jne-salt');
     const price = parseNum('jne-price');
 
     if (kcal  !== undefined) entry.kcal  = kcal;  else delete entry.kcal;
@@ -9506,6 +9675,8 @@ function jnSaveEntryEdit() {
     if (carb  !== undefined) entry.carb  = carb;  else delete entry.carb;
     if (fat   !== undefined) entry.fat   = fat;   else delete entry.fat;
     if (fiber !== undefined) entry.fiber = fiber; else delete entry.fiber;
+    if (sugar !== undefined) entry.sugar = sugar; else delete entry.sugar;
+    if (salt  !== undefined) entry.salt  = salt;  else delete entry.salt;
     if (price !== undefined) entry.price = price; else delete entry.price;
 
     if (newGrams !== undefined) { entry.grams = newGrams; entry.amount = newGrams; } else { delete entry.grams; }
@@ -9823,6 +9994,7 @@ function jnBuildAddIng() {
   jnBuildIngs.push({
     foodId: f.id, name: f.name, amount: amt, displayUnit: unit,
     kcal: f.kcal*mult, prot: (f.prot||0)*mult, carb: (f.carb||0)*mult, fat: (f.fat||0)*mult,
+    fiber: (f.fiber||0)*mult, sugar: (f.sugar||0)*mult, salt: (f.salt||0)*mult,
     price: +calcIngPrice(f, amt).toFixed(2),
   });
   // Reset picker
@@ -9882,6 +10054,9 @@ function jnBuildEntry() {
     const mProt = m.prot || (m.ings||[]).reduce((s,i)=>s+(i.prot||0),0);
     const mCarb = m.carb || (m.ings||[]).reduce((s,i)=>s+(i.carb||0),0);
     const mFat  = m.fat  || (m.ings||[]).reduce((s,i)=>s+(i.fat||0),0);
+    const mFiber = m.fiber || (m.ings||[]).reduce((s,i)=>s+(i.fiber||0),0);
+    const mSugar = m.sugar || (m.ings||[]).reduce((s,i)=>s+(i.sugar||0),0);
+    const mSalt  = m.salt  || (m.ings||[]).reduce((s,i)=>s+(i.salt||0),0);
     const mGrams = (m.ings||[]).reduce((s,i)=>s+(Number(i.amount)||0),0);
     // Ulož i jednotlivé ingredience receptu, aby šly editovat v bloku
     const mIngs = (m.ings||[]).map(i => ({
@@ -9892,11 +10067,15 @@ function jnBuildEntry() {
       prot: Math.round((Number(i.prot)||0)*10)/10,
       carb: Math.round((Number(i.carb)||0)*10)/10,
       fat:  Math.round((Number(i.fat) ||0)*10)/10,
+      fiber: Math.round((Number(i.fiber)||0)*10)/10 || undefined,
+      sugar: Math.round((Number(i.sugar)||0)*10)/10 || undefined,
+      salt:  Math.round((Number(i.salt) ||0)*100)/100 || undefined,
       price: Math.round((Number(i.price)||0)*10)/10 || undefined,
     }));
     return { id: Date.now(), type: jnAddType, source: 'meal', name: m.name, mealId: m.id,
       kcal: Math.round(mKcal*10)/10, prot: Math.round(mProt*10)/10,
       carb: Math.round(mCarb*10)/10, fat:  Math.round(mFat*10)/10,
+      fiber: Math.round(mFiber*10)/10 || undefined, sugar: Math.round(mSugar*10)/10 || undefined, salt: Math.round(mSalt*100)/100 || undefined,
       grams: mGrams > 0 ? Math.round(mGrams) : undefined,
       ings: mIngs.length ? mIngs : undefined,
       price: Math.round((m.price || (m.ings||[]).reduce((s,i)=>s+(i.price||0),0))*10)/10 };
@@ -9910,6 +10089,7 @@ function jnBuildEntry() {
       unit: f.unit || '100g',
       kcal: Math.round(f.kcal*mult*10)/10, prot: Math.round((f.prot||0)*mult*10)/10,
       carb: Math.round((f.carb||0)*mult*10)/10, fat: Math.round((f.fat||0)*mult*10)/10,
+      fiber: Math.round((f.fiber||0)*mult*10)/10 || undefined, sugar: Math.round((f.sugar||0)*mult*10)/10 || undefined, salt: Math.round((f.salt||0)*mult*100)/100 || undefined,
       amount: amt, displayUnit: jnFoodSelectedUnit, price: Math.round(fPrice*10)/10 };
   } else {
     if (jnBuildIngs.length === 0) { toast('Přidej alespoň jednu ingredienci'); return null; }
@@ -9925,6 +10105,7 @@ function jnBuildEntry() {
     return { id: Date.now(), type: jnAddType, source: 'build', name,
       kcal: Math.round(tot('kcal')*10)/10, prot: Math.round(tot('prot')*10)/10,
       carb: Math.round(tot('carb')*10)/10, fat: Math.round(tot('fat')*10)/10,
+      fiber: Math.round(tot('fiber')*10)/10 || undefined, sugar: Math.round(tot('sugar')*10)/10 || undefined, salt: Math.round(tot('salt')*100)/100 || undefined,
       price: Math.round(tot('price')*10)/10 };
   }
 }
@@ -10008,6 +10189,25 @@ function jnOvSwitch(mode, btn) {
 
 function jnOvDonutSVG(id, pct, color, pctLabel, valLabel, planLabel, avgLabel) {
   const r = 55, circ = 2 * Math.PI * r;
+  // No-goal mode: pct === null → neutral full ring, value shown big, no %
+  if (pct === null) {
+    return `<div class="jn-ov-donut-wrap">
+      <div class="jn-ov-donut-svg">
+        <svg width="130" height="130" viewBox="0 0 130 130">
+          <circle cx="65" cy="65" r="${r}" fill="none" stroke="var(--border)" stroke-width="9"/>
+          <circle cx="65" cy="65" r="${r}" fill="none" stroke="${color}" stroke-width="9"
+            stroke-dasharray="${circ.toFixed(2)} 0" stroke-dashoffset="${(circ*0.25).toFixed(2)}"
+            stroke-linecap="round" opacity="0.55"/>
+        </svg>
+        <div class="jn-ov-donut-center">
+          <span class="jn-ov-donut-pct" style="color:${color};font-size:1.05rem;">${valLabel}</span>
+        </div>
+      </div>
+      <div class="jn-ov-donut-label">${id.split('-')[3] || ''}</div>
+      <div class="jn-ov-donut-plan">za období</div>
+      ${avgLabel ? `<div class="jn-ov-donut-avg" style="color:${color}">${avgLabel}</div><div class="jn-ov-donut-avg-lbl">průměr / den</div>` : ''}
+    </div>`;
+  }
   const fill = Math.min(pct, 100);
   const dash = circ * fill / 100;
   const strokeColor = pct > 105 ? 'var(--accent3)' : color;
@@ -10079,7 +10279,7 @@ function jnRenderOverview() {
     });
 
     // Totals from days with data (up to today)
-    let totKcal = 0, totProt = 0, totCarb = 0, totFat = 0;
+    let totKcal = 0, totProt = 0, totCarb = 0, totFat = 0, totFiber = 0, totSugar = 0, totSalt = 0;
     let countedDays = 0;
     days.forEach(d => {
       if (d > today) return; // skip future
@@ -10090,6 +10290,9 @@ function jnRenderOverview() {
       totProt += entries.reduce((s,e)=>s+(e.prot||0),0);
       totCarb += entries.reduce((s,e)=>s+(e.carb||0),0);
       totFat  += entries.reduce((s,e)=>s+(e.fat||0),0);
+      totFiber+= entries.reduce((s,e)=>s+(e.fiber||0),0);
+      totSugar+= entries.reduce((s,e)=>s+(e.sugar||0),0);
+      totSalt += entries.reduce((s,e)=>s+(e.salt||0),0);
       countedDays++;
     });
 
@@ -10120,14 +10323,22 @@ function jnRenderOverview() {
 
     const donutsEl = document.getElementById('jn-ov-week-donuts');
     const avgD = countedDays > 0 ? countedDays : 1;
+    const exGoalsW = jnGetExtraGoals();
+    const planFiberW = exGoalsW.fiber ? exGoalsW.fiber * elapsed : null;
+    const planSaltW  = exGoalsW.salt  ? exGoalsW.salt  * elapsed : null;
+    const pFiberW = planFiberW ? Math.round(totFiber / planFiberW * 100) : null;
+    const pSaltW  = planSaltW  ? Math.round(totSalt  / planSaltW  * 100) : null;
     donutsEl.innerHTML =
       jnOvDonutSVG('jn-ov-wd-kcal', pKcal, 'var(--accent)',  pKcal+'%', Math.round(totKcal)+' kcal', `z ${Math.round(planKcalTotal)} kcal`, Math.round(totKcal/avgD)+' kcal') +
       jnOvDonutSVG('jn-ov-wd-prot', pProt, 'var(--accent3)', pProt+'%', totProt.toFixed(0)+'g',        `z ${Math.round(planProtTotal)}g`,    (totProt/avgD).toFixed(1)+'g') +
       jnOvDonutSVG('jn-ov-wd-carb', pCarb, 'var(--accent2)', pCarb+'%', totCarb.toFixed(0)+'g',        `z ${Math.round(planCarbTotal)}g`,    (totCarb/avgD).toFixed(1)+'g') +
-      jnOvDonutSVG('jn-ov-wd-fat',  pFat,  'var(--accent4)', pFat+'%',  totFat.toFixed(0)+'g',         `z ${Math.round(planFatTotal)}g`,     (totFat/avgD).toFixed(1)+'g');
+      jnOvDonutSVG('jn-ov-wd-fat',  pFat,  'var(--accent4)', pFat+'%',  totFat.toFixed(0)+'g',         `z ${Math.round(planFatTotal)}g`,     (totFat/avgD).toFixed(1)+'g') +
+      jnOvDonutSVG('jn-ov-wd-sugar', null, '#e08fc0', '', totSugar.toFixed(0)+'g', '', (totSugar/avgD).toFixed(1)+'g') +
+      jnOvDonutSVG('jn-ov-wd-fiber', pFiberW, '#7fb88a', pFiberW!=null?pFiberW+'%':'', totFiber.toFixed(0)+'g', planFiberW?`z ${Math.round(planFiberW)}g`:'', (totFiber/avgD).toFixed(1)+'g') +
+      jnOvDonutSVG('jn-ov-wd-salt',  pSaltW,  '#6fa8c7', pSaltW!=null?pSaltW+'%':'',   totSalt.toFixed(1)+'g',  planSaltW?`z ${Math.round(planSaltW)}g`:'',   (totSalt/avgD).toFixed(2)+'g');
 
     // Fix labels — replace the auto-split id label with proper ones
-    const labels = ['Kalorie','Bílkoviny','Sacharidy','Tuky'];
+    const labels = ['Kalorie','Bílkoviny','Sacharidy','Tuky','z toho cukry','Vláknina','Sůl'];
     donutsEl.querySelectorAll('.jn-ov-donut-label').forEach((el,i) => el.textContent = labels[i]);
 
     requestAnimationFrame(() => jnOvAnimateDonuts(donutsEl));
@@ -10164,7 +10375,7 @@ function jnRenderOverview() {
     const monthName = ['Leden','Únor','Březen','Duben','Květen','Červen','Červenec','Srpen','Září','Říjen','Listopad','Prosinec'][month];
     document.getElementById('jn-ov-month-title').textContent = `${monthName} ${year}`;
 
-    let totKcal=0, totProt=0, totCarb=0, totFat=0, countedDays=0;
+    let totKcal=0, totProt=0, totCarb=0, totFat=0, totFiber=0, totSugar=0, totSalt=0, countedDays=0;
     const allDays = [];
     for (let day = 1; day <= daysInMonth; day++) {
       const d = new Date(year, month, day);
@@ -10175,9 +10386,13 @@ function jnRenderOverview() {
       const prot = entries.reduce((s,e)=>s+(e.prot||0),0);
       const carb = entries.reduce((s,e)=>s+(e.carb||0),0);
       const fat  = entries.reduce((s,e)=>s+(e.fat||0),0);
+      const fiber= entries.reduce((s,e)=>s+(e.fiber||0),0);
+      const sugar= entries.reduce((s,e)=>s+(e.sugar||0),0);
+      const salt = entries.reduce((s,e)=>s+(e.salt||0),0);
       allDays.push({d, k, isFuture, kcal, prot, carb, fat, hasData: entries.length>0});
       if (!isFuture && entries.length > 0) {
-        totKcal += kcal; totProt += prot; totCarb += carb; totFat += fat; countedDays++;
+        totKcal += kcal; totProt += prot; totCarb += carb; totFat += fat;
+        totFiber += fiber; totSugar += sugar; totSalt += salt; countedDays++;
       }
     }
 
@@ -10204,13 +10419,21 @@ function jnRenderOverview() {
 
     const donutsEl = document.getElementById('jn-ov-month-donuts');
     const avgM = countedDays > 0 ? countedDays : 1;
+    const exGoalsM = jnGetExtraGoals();
+    const planFiberM = exGoalsM.fiber ? exGoalsM.fiber * elapsed : null;
+    const planSaltM  = exGoalsM.salt  ? exGoalsM.salt  * elapsed : null;
+    const pFiberM = planFiberM ? Math.round(totFiber / planFiberM * 100) : null;
+    const pSaltM  = planSaltM  ? Math.round(totSalt  / planSaltM  * 100) : null;
     donutsEl.innerHTML =
       jnOvDonutSVG('jn-ov-md-kcal', pKcal, 'var(--accent)',  pKcal+'%', Math.round(totKcal)+' kcal', `z ${Math.round(planKcalTotal)} kcal`, Math.round(totKcal/avgM)+' kcal') +
       jnOvDonutSVG('jn-ov-md-prot', pProt, 'var(--accent3)', pProt+'%', totProt.toFixed(0)+'g',        `z ${Math.round(planProtTotal)}g`,    (totProt/avgM).toFixed(1)+'g') +
       jnOvDonutSVG('jn-ov-md-carb', pCarb, 'var(--accent2)', pCarb+'%', totCarb.toFixed(0)+'g',        `z ${Math.round(planCarbTotal)}g`,    (totCarb/avgM).toFixed(1)+'g') +
-      jnOvDonutSVG('jn-ov-md-fat',  pFat,  'var(--accent4)', pFat+'%',  totFat.toFixed(0)+'g',         `z ${Math.round(planFatTotal)}g`,     (totFat/avgM).toFixed(1)+'g');
+      jnOvDonutSVG('jn-ov-md-fat',  pFat,  'var(--accent4)', pFat+'%',  totFat.toFixed(0)+'g',         `z ${Math.round(planFatTotal)}g`,     (totFat/avgM).toFixed(1)+'g') +
+      jnOvDonutSVG('jn-ov-md-sugar', null, '#e08fc0', '', totSugar.toFixed(0)+'g', '', (totSugar/avgM).toFixed(1)+'g') +
+      jnOvDonutSVG('jn-ov-md-fiber', pFiberM, '#7fb88a', pFiberM!=null?pFiberM+'%':'', totFiber.toFixed(0)+'g', planFiberM?`z ${Math.round(planFiberM)}g`:'', (totFiber/avgM).toFixed(1)+'g') +
+      jnOvDonutSVG('jn-ov-md-salt',  pSaltM,  '#6fa8c7', pSaltM!=null?pSaltM+'%':'',   totSalt.toFixed(1)+'g',  planSaltM?`z ${Math.round(planSaltM)}g`:'',   (totSalt/avgM).toFixed(2)+'g');
 
-    const labels = ['Kalorie','Bílkoviny','Sacharidy','Tuky'];
+    const labels = ['Kalorie','Bílkoviny','Sacharidy','Tuky','z toho cukry','Vláknina','Sůl'];
     donutsEl.querySelectorAll('.jn-ov-donut-label').forEach((el,i) => el.textContent = labels[i]);
     requestAnimationFrame(() => jnOvAnimateDonuts(donutsEl));
 
@@ -10771,7 +10994,7 @@ function jnDoCopy(targetDate) {
 function jnComboRecalc(combo) {
   const items = combo.items || [];
   const sum = (k) => items.reduce((s, it) => s + (Number(it[k]) || 0), 0);
-  ['kcal','prot','carb','fat','fiber','price','grams'].forEach(k => {
+  ['kcal','prot','carb','fat','fiber','sugar','salt','price','grams'].forEach(k => {
     const v = sum(k);
     if (v > 0) combo[k] = v; else delete combo[k];
   });
@@ -10897,6 +11120,9 @@ function jnBackfillIngs(item) {
     prot: Math.round((Number(i.prot)||0)*10)/10,
     carb: Math.round((Number(i.carb)||0)*10)/10,
     fat:  Math.round((Number(i.fat) ||0)*10)/10,
+    fiber: Math.round((Number(i.fiber)||0)*10)/10 || undefined,
+    sugar: Math.round((Number(i.sugar)||0)*10)/10 || undefined,
+    salt:  Math.round((Number(i.salt) ||0)*100)/100 || undefined,
     price: Math.round((Number(i.price)||0)*10)/10 || undefined,
   }));
   if (!mIngs.length) return false;
@@ -10970,7 +11196,7 @@ function jnOpenIngredientEditor(key, idx, e) {
           type: item.type,
           unit: resolveUnit(ing),
           baseGrams: grams, curGrams: (ing.grams!=null?ing.grams:(ing.amount!=null?ing.amount:null)),
-          base: { kcal:+ing.kcal||0, prot:+ing.prot||0, carb:+ing.carb||0, fat:+ing.fat||0, fiber:+ing.fiber||0, price:+ing.price||0 },
+          base: { kcal:+ing.kcal||0, prot:+ing.prot||0, carb:+ing.carb||0, fat:+ing.fat||0, fiber:+ing.fiber||0, sugar:+ing.sugar||0, salt:+ing.salt||0, price:+ing.price||0 },
           removed: false,
         });
       });
@@ -10984,7 +11210,7 @@ function jnOpenIngredientEditor(key, idx, e) {
         type: item.type,
         unit: resolveUnit(item),
         baseGrams: grams, curGrams: (item.grams!=null?item.grams:(item.amount!=null?item.amount:null)),
-        base: { kcal:+item.kcal||0, prot:+item.prot||0, carb:+item.carb||0, fat:+item.fat||0, fiber:+item.fiber||0, price:+item.price||0 },
+        base: { kcal:+item.kcal||0, prot:+item.prot||0, carb:+item.carb||0, fat:+item.fat||0, fiber:+item.fiber||0, sugar:+item.sugar||0, salt:+item.salt||0, price:+item.price||0 },
         removed: false,
       });
     }
@@ -11009,7 +11235,9 @@ function jnRowMacros(row) {
   return {
     kcal: Math.round(row.base.kcal * ratio),
     prot: r(row.base.prot), carb: r(row.base.carb),
-    fat: r(row.base.fat), fiber: r(row.base.fiber), price: r(row.base.price),
+    fat: r(row.base.fat), fiber: r(row.base.fiber),
+    sugar: r(row.base.sugar), salt: Math.round(row.base.salt * ratio * 100) / 100,
+    price: r(row.base.price),
   };
 }
 
@@ -11135,6 +11363,8 @@ function _jnApplyRow(row) {
     if (m.carb)  o.carb  = m.carb;  else delete o.carb;
     if (m.fat)   o.fat   = m.fat;   else delete o.fat;
     if (m.fiber) o.fiber = m.fiber; else delete o.fiber;
+    if (m.sugar) o.sugar = m.sugar; else delete o.sugar;
+    if (m.salt)  o.salt  = m.salt;  else delete o.salt;
     if (m.price) o.price = m.price; else delete o.price;
     o.grams = row.curGrams;
     o.amount = row.curGrams;
@@ -11145,7 +11375,7 @@ function _jnApplyRow(row) {
 function _jnRecalcFromIngs(item) {
   const ings = item.ings || [];
   const sum = k => ings.reduce((s,i)=>s+(Number(i[k])||0),0);
-  ['kcal','prot','carb','fat','fiber','price','grams'].forEach(k=>{
+  ['kcal','prot','carb','fat','fiber','sugar','salt','price','grams'].forEach(k=>{
     const v = sum(k);
     if (v>0) item[k] = Math.round(v*10)/10; else delete item[k];
   });
@@ -11941,6 +12171,8 @@ function scanPopulateForm(d) {
   document.getElementById('scan-carb').value  = d.carb  || '';
   document.getElementById('scan-fat').value   = d.fat   || '';
   document.getElementById('scan-fiber').value = d.fiber || '';
+  document.getElementById('scan-sugar').value = d.sugar || '';
+  document.getElementById('scan-salt').value  = d.salt  || '';
   document.getElementById('scan-price').value = '';
   document.getElementById('scan-unit').value  = d.unit  || '100g';
   document.getElementById('scan-ai-note').textContent = d.note || '';
@@ -11994,6 +12226,8 @@ function scanGetFoodObj() {
     carb:  parseFloat(document.getElementById('scan-carb').value)  || 0,
     fat:   parseFloat(document.getElementById('scan-fat').value)   || 0,
     fiber: parseFloat(document.getElementById('scan-fiber').value) || 0,
+    sugar: parseFloat(document.getElementById('scan-sugar').value) || 0,
+    salt:  parseFloat(document.getElementById('scan-salt').value)  || 0,
     cat:   document.getElementById('scan-cat').value,
     price: parseFloat(document.getElementById('scan-price').value) || 0,
     baleniG: unit === 'baleni' ? (parseFloat(document.getElementById('scan-baleni-g').value) || null) : null,
@@ -12014,6 +12248,7 @@ function scanAddToJn(food) {
     id: Date.now(), type: 'ostatni', source: 'food',
     name: food.name, unit: food.unit,
     kcal: food.kcal, prot: food.prot, carb: food.carb, fat: food.fat, fiber: food.fiber,
+    sugar: food.sugar || undefined, salt: food.salt || undefined,
     grams: food.unit === 'ks' ? 1 : 100,
     price: food.price,
   });
