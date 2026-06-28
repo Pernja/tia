@@ -13,8 +13,21 @@ const SUPA_URL = 'https://rbupldmzxdfhxzsqqxoa.supabase.co';
 const SUPA_KEY = 'sb_publishable_II_utl7xhPc_GG-bxgAuoQ_TMru3aOm';
 const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-// Mapování localStorage klíčů na Supabase tabulky
+// Mapování localStorage klíčů na Supabase tabulky (normalizované schéma v2)
 const SUPA_TABLE_MAP = {
+  'jidlo-2026':      'tia_nakup_v2',
+  'jidlo-meals':     'tia_meals_v2',
+  'jidlo-jidelnicek':'tia_jidelnicek_v2',
+  'jidlo-foods':     'tia_foods_v2',
+  'jidlo-profil':    'tia_profil_v2',
+  'jidlo-aktivity':  'tia_aktivity_v2',
+  'jidlo-suplementy':'tia_suplementy_v2',
+  'jidlo-vaha':      'tia_vaha_v2',
+};
+
+// Stará (blob) schémata — slouží jen k jednorázové migraci, pokud jsou nové
+// tabulky pro daného uživatele ještě prázdné. Staré tabulky se nemažou.
+const SUPA_OLD_TABLE_MAP = {
   'jidlo-2026':      'tia_nakup',
   'jidlo-meals':     'tia_meals',
   'jidlo-jidelnicek':'tia_jidelnicek',
@@ -24,6 +37,116 @@ const SUPA_TABLE_MAP = {
   'jidlo-suplementy':'tia_suplementy',
   'jidlo-vaha':      'tia_vaha',
 };
+
+const _NUM = v => { const n = +v; return isNaN(n) ? 0 : n; };
+
+// ── PŘEVOD: kolekce (z localStorage) → pole řádků pro Supabase ────────────────
+// Vrací { rows, keyCol, ids } pro list-tabulky, nebo speciální tvar pro singleton.
+function _collectionToRows(lsKey, value, uid) {
+  const now = new Date().toISOString();
+  switch (lsKey) {
+    case 'jidlo-foods': {
+      const rows = (value||[]).filter(f=>f && f.id!=null).map(f => ({
+        user_id: uid, item_id: f.id, name: f.name||'', unit: f.unit||'100g', cat: f.cat||null,
+        kcal:_NUM(f.kcal), prot:_NUM(f.prot), carb:_NUM(f.carb), sugar:_NUM(f.sugar),
+        fat:_NUM(f.fat), fiber:_NUM(f.fiber), salt:_NUM(f.salt), price:_NUM(f.price),
+        baleni_g: f.baleniG ?? null, data: f, updated_at: now,
+      }));
+      return { rows, keyCol: 'item_id', ids: rows.map(r=>r.item_id) };
+    }
+    case 'jidlo-meals': {
+      const rows = (value||[]).filter(m=>m && m.id!=null).map(m => ({
+        user_id: uid, item_id: m.id, name: m.name||'', type: m.type||null,
+        kcal:_NUM(m.kcal), prot:_NUM(m.prot), carb:_NUM(m.carb), sugar:_NUM(m.sugar),
+        fat:_NUM(m.fat), fiber:_NUM(m.fiber), salt:_NUM(m.salt), price:_NUM(m.price),
+        ings: m.ings ?? null, data: m, updated_at: now,
+      }));
+      return { rows, keyCol: 'item_id', ids: rows.map(r=>r.item_id) };
+    }
+    case 'jidlo-suplementy': {
+      const rows = (value||[]).filter(s=>s && s.id!=null).map(s => ({
+        user_id: uid, item_id: s.id, name: s.name||'', brand: s.brand||null, type: s.type||null,
+        daily:_NUM(s.daily), dose_g:_NUM(s.doseG), price:_NUM(s.price), pkg_count:_NUM(s.pkgCount),
+        days_supply:_NUM(s.daysSupply), price_per_day:_NUM(s.pricePerDay), kcal:_NUM(s.kcal),
+        prot:_NUM(s.prot), note: s.note||null, data: s, updated_at: now,
+      }));
+      return { rows, keyCol: 'item_id', ids: rows.map(r=>r.item_id) };
+    }
+    case 'jidlo-2026': {
+      const rows = (value||[]).filter(i=>i && i.id!=null).map(i => ({
+        user_id: uid, item_id: i.id, name: i.name||'', qty: i.qty||null,
+        week:_NUM(i.week), cat: (i.cat!=null?i.cat:null), data: i, updated_at: now,
+      }));
+      return { rows, keyCol: 'item_id', ids: rows.map(r=>r.item_id) };
+    }
+    case 'jidlo-aktivity': {
+      const rows = (value||[]).filter(a=>a && a.id!=null).map(a => ({
+        user_id: uid, item_id: a.id, typ: a.typ||null,
+        kroky: a.kroky!=null?_NUM(a.kroky):null, tydne: a.tydne!=null?_NUM(a.tydne):null,
+        min: a.min!=null?_NUM(a.min):null, data: a, updated_at: now,
+      }));
+      return { rows, keyCol: 'item_id', ids: rows.map(r=>r.item_id) };
+    }
+    case 'jidlo-vaha': {
+      const rows = (value||[]).filter(v=>v && v.date).map(v => ({
+        user_id: uid, day: v.date, kg:_NUM(v.kg), updated_at: now,
+      }));
+      return { rows, keyCol: 'day', ids: rows.map(r=>r.day) };
+    }
+    case 'jidlo-jidelnicek': {
+      const sum = (entries,k)=> (entries||[]).reduce((s,e)=>s+_NUM(e[k]),0);
+      const days = Object.keys(value||{}).filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k));
+      const rows = days.map(day => {
+        const entries = value[day] || [];
+        return { user_id: uid, day, entries,
+          kcal:sum(entries,'kcal'), prot:sum(entries,'prot'), carb:sum(entries,'carb'),
+          sugar:sum(entries,'sugar'), fat:sum(entries,'fat'), fiber:sum(entries,'fiber'),
+          salt:sum(entries,'salt'), price:sum(entries,'price'), updated_at: now };
+      });
+      return { rows, keyCol: 'day', ids: days, meta: (value && value._meta) || null };
+    }
+    case 'jidlo-profil':
+      return { singleton: true, row: { user_id: uid, data: value, updated_at: now } };
+    default:
+      return { rows: [], keyCol: 'item_id', ids: [] };
+  }
+}
+
+// ── PŘEVOD: řádky ze Supabase → kolekce (do localStorage) ─────────────────────
+function _rowsToCollection(lsKey, rows) {
+  switch (lsKey) {
+    case 'jidlo-foods':
+    case 'jidlo-meals':
+    case 'jidlo-suplementy':
+    case 'jidlo-2026':
+    case 'jidlo-aktivity':
+      return (rows||[]).map(r => r.data);
+    case 'jidlo-vaha':
+      return (rows||[]).map(r => ({ kg: r.kg, date: (typeof r.day==='string'? r.day.slice(0,10): r.day) }));
+    case 'jidlo-jidelnicek': {
+      const out = {};
+      (rows||[]).forEach(r => { const d = (typeof r.day==='string'? r.day.slice(0,10): r.day); out[d] = r.entries || []; });
+      return out;
+    }
+    case 'jidlo-profil':
+      return (rows && rows[0]) ? rows[0].data : null;
+    default:
+      return [];
+  }
+}
+
+// Smaž z tabulky řádky, které už nejsou v aktuální kolekci (klíč keyCol).
+async function _supaDeleteMissing(table, uid, keyCol, ids) {
+  if (!ids || ids.length === 0) {
+    const { error } = await supa.from(table).delete().eq('user_id', uid);
+    if (error) throw error;
+    return;
+  }
+  const isText = keyCol === 'day';
+  const list = ids.map(v => isText ? `"${v}"` : v).join(',');
+  const { error } = await supa.from(table).delete().eq('user_id', uid).not(keyCol, 'in', `(${list})`);
+  if (error) throw error;
+}
 
 const _supaCache = {};
 let _supaReady = false;
@@ -66,7 +189,6 @@ function _updateSyncUI() {
 async function supaForceSyncAll() {
   if (!_supaReady || !_currentUserId) return;
   _failedSync.clear();
-  const dot = document.getElementById('supa-status-dot');
   const lbl = document.getElementById('supa-status-label');
   if (lbl) lbl.textContent = 'Synchronizuji vše…';
 
@@ -75,7 +197,7 @@ async function supaForceSyncAll() {
     if (raw == null) continue;
     try {
       const value = JSON.parse(raw);
-      await _supaUpsert(lsKey, value);
+      await _supaWriteCollection(lsKey, value);
     } catch(e) {
       _failedSync.add(lsKey);
       console.warn('Force sync failed', lsKey, e);
@@ -107,19 +229,37 @@ async function logoutUser() {
 async function supaLoadAll(userId) {
   try {
     for (const [lsKey, table] of Object.entries(SUPA_TABLE_MAP)) {
-      const { data, error } = await supa.from(table)
-        .select('data')
-        .eq('user_id', userId)
-        .maybeSingle();
-      if (error) { console.warn('Supabase load error', table, error); continue; }
-      if (data) {
-        // Cloud má vždy prioritu — přepíšeme localStorage přímo přes _origSetItem.
-        // Tím se vyhneme situaci na iOS Safari kdy je localStorage smazán
-        // a prázdná lokální data by "vyhrála" nad cloudovými v _syncLocalIfNewer.
-        _origSetItem(lsKey, JSON.stringify(data.data));
-        _supaCache[lsKey] = data.data;
-      }
+      try {
+        // 1) Načti z nového (normalizovaného) schématu
+        const { data: rows, error } = await supa.from(table).select('*').eq('user_id', userId);
+        if (error) { console.warn('Supabase load error', table, error); continue; }
+
+        if (rows && rows.length > 0) {
+          let coll = _rowsToCollection(lsKey, rows);
+          // Data z nového (normalizovaného) schématu jsou už po opravě dat,
+          // proto jídelníčku rovnou nastavíme dateFix, ať se jnFixDateKeys nespustí znovu.
+          if (lsKey === 'jidlo-jidelnicek' && coll && typeof coll === 'object') {
+            coll._meta = Object.assign({}, coll._meta, { dateFix: 1 });
+          }
+          if (coll != null) { _origSetItem(lsKey, JSON.stringify(coll)); _supaCache[lsKey] = coll; }
+          continue;
+        }
+
+        // 2) Nové tabulky jsou prázdné → jednorázová migrace ze staré blob-tabulky
+        const oldTable = SUPA_OLD_TABLE_MAP[lsKey];
+        if (oldTable) {
+          const { data: oldRow } = await supa.from(oldTable).select('data').eq('user_id', userId).maybeSingle();
+          if (oldRow && oldRow.data != null) {
+            _origSetItem(lsKey, JSON.stringify(oldRow.data));
+            _supaCache[lsKey] = oldRow.data;
+            // Přenes do nového schématu (běží jen jednou, protože pak už nová tabulka data má)
+            try { await _supaWriteCollection(lsKey, oldRow.data); console.log('↪ migrováno do', table); }
+            catch(mErr) { console.warn('Migrace selhala', table, mErr); }
+          }
+        }
+      } catch(inner) { console.warn('Load/migrate selhal', table, inner); }
     }
+
     _supaReady = true;
     console.log('✓ Supabase data načtena');
   } catch(e) {
@@ -129,15 +269,26 @@ async function supaLoadAll(userId) {
   _updateSyncUI();
 }
 
-// Upsert pomocí ON CONFLICT — jeden dotaz místo SELECT + UPDATE/INSERT
-async function _supaUpsert(lsKey, value) {
+// Zapíše celou kolekci do normalizovaného schématu: upsert aktuálních řádků
+// + smazání těch, které už v kolekci nejsou.
+async function _supaWriteCollection(lsKey, value) {
   const table = SUPA_TABLE_MAP[lsKey];
   if (!table || !_currentUserId) return;
-  const { error } = await supa.from(table).upsert(
-    { user_id: _currentUserId, data: value, updated: new Date().toISOString() },
-    { onConflict: 'user_id' }
-  );
-  if (error) throw error;
+  const uid = _currentUserId;
+  const spec = _collectionToRows(lsKey, value, uid);
+
+  // Singleton (profil)
+  if (spec.singleton) {
+    const { error } = await supa.from(table).upsert(spec.row, { onConflict: 'user_id' });
+    if (error) throw error;
+    return;
+  }
+
+  if (spec.rows.length > 0) {
+    const { error } = await supa.from(table).upsert(spec.rows, { onConflict: `user_id,${spec.keyCol}` });
+    if (error) throw error;
+  }
+  await _supaDeleteMissing(table, uid, spec.keyCol, spec.ids);
 }
 
 async function supaSave(lsKey, value) {
@@ -146,7 +297,7 @@ async function supaSave(lsKey, value) {
   _pendingSync.add(lsKey);
   _updateSyncUI();
   try {
-    await _supaUpsert(lsKey, value);
+    await _supaWriteCollection(lsKey, value);
     _pendingSync.delete(lsKey);
     _failedSync.delete(lsKey);
   } catch(e) {
@@ -252,7 +403,7 @@ document.addEventListener('visibilitychange', async () => {
       const raw = localStorage.getItem(lsKey);
       if (raw == null) continue;
       try {
-        await _supaUpsert(lsKey, JSON.parse(raw));
+        await _supaWriteCollection(lsKey, JSON.parse(raw));
         _pendingSync.delete(lsKey);
         _failedSync.delete(lsKey);
       } catch(e) {
@@ -10490,29 +10641,21 @@ function importData(input) {
         if (data[k] !== undefined) _origSetItem(k, JSON.stringify(data[k]));
       });
 
-      // 2) Nahraj primo do Supabase pod prihlasenym uzivatelem
+      // 2) Nahraj do Supabase (normalizované schéma) pod přihlášeným uživatelem
       const importUserId = _currentUserId;
       if (!importUserId) { toast('✕ Nejste přihlášen — import nelze provést'); return; }
       toast('⏳ Nahravám data do cloudu…');
       let ok = true;
       for (const k of DATA_KEYS) {
         if (data[k] === undefined) continue;
-        const table = SUPA_TABLE_MAP[k];
-        if (!table) continue;
+        if (!SUPA_TABLE_MAP[k]) continue;
         try {
-          const { data: existing, error: selErr } = await supa.from(table).select('id').eq('user_id', importUserId).maybeSingle();
-          if (selErr) { console.warn('Select error', table, selErr); ok = false; continue; }
-          let writeErr;
-          if (existing) {
-            const { error } = await supa.from(table).update({ data: data[k], updated: new Date().toISOString() }).eq('user_id', importUserId);
-            writeErr = error;
-          } else {
-            const { error } = await supa.from(table).insert({ user_id: importUserId, data: data[k], updated: new Date().toISOString() });
-            writeErr = error;
-          }
-          if (writeErr) { console.warn('Write error', table, writeErr); toast('✕ DB chyba: ' + table + ' - ' + (writeErr.message||writeErr.code||JSON.stringify(writeErr))); ok = false; }
-          else { console.log('✓', table, 'uloženo pod', importUserId); }
-        } catch(err2) { console.warn('Import fail', table, err2); ok = false; }
+          await _supaWriteCollection(k, data[k]);
+          console.log('✓', SUPA_TABLE_MAP[k], 'uloženo pod', importUserId);
+        } catch(err2) {
+          console.warn('Import fail', k, err2); ok = false;
+          toast('✕ DB chyba: ' + SUPA_TABLE_MAP[k] + ' - ' + (err2.message || JSON.stringify(err2)));
+        }
       }
 
       if (ok) {
