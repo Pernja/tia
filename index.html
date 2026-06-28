@@ -2815,6 +2815,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   .jn-macro-chip.prot { color: var(--accent3); }
   .jn-macro-chip.carb { color: var(--accent2); }
   .jn-macro-chip.fat  { color: var(--accent4); }
+  .jn-macro-chip.sugar { color: #e08fc0; }
+  .jn-macro-chip.fiber { color: #7fb88a; }
+  .jn-macro-chip.salt  { color: #6fa8c7; }
 
   .jn-meal-del {
     position: absolute; top: 5px; right: 5px;
@@ -7345,12 +7348,15 @@ function renderMealDetail(id) {
   const panel = document.getElementById('meal-detail-panel');
   if (!meal || !panel) return;
 
-  const tot = { kcal: 0, prot: 0, carb: 0, fat: 0 };
+  const tot = { kcal: 0, prot: 0, carb: 0, fat: 0, sugar: 0, fiber: 0, salt: 0 };
   meal.ings.forEach(ing => {
     tot.kcal += ing.kcal;
     tot.prot += ing.prot;
     tot.carb += ing.carb;
     tot.fat  += ing.fat;
+    tot.sugar += (ing.sugar || 0);
+    tot.fiber += (ing.fiber || 0);
+    tot.salt  += (ing.salt  || 0);
   });
 
   const maxKcal = Math.max(...meal.ings.map(i => i.kcal), 1);
@@ -7366,7 +7372,10 @@ function renderMealDetail(id) {
         <td class="r td-kcal">${ing.kcal} kcal</td>
         <td class="r td-prot">${ing.prot.toFixed(1)} g</td>
         <td class="r td-carb">${ing.carb.toFixed(1)} g</td>
+        <td class="r" style="color:#e08fc0">${(ing.sugar||0).toFixed(1)} g</td>
         <td class="r td-fat">${ing.fat.toFixed(1)} g</td>
+        <td class="r" style="color:#7fb88a">${(ing.fiber||0).toFixed(1)} g</td>
+        <td class="r" style="color:#6fa8c7">${(ing.salt||0).toFixed(2)} g</td>
         <td class="r" style="color:var(--accent);font-family:var(--font-mono);font-size:12px;">${ing.price > 0 ? fmtPrice(ing.price) : '—'}</td>
         <td class="r" style="min-width:90px">
           <div style="display:flex;align-items:center;gap:6px;justify-content:flex-end">
@@ -7399,7 +7408,10 @@ function renderMealDetail(id) {
           <th class="r">Kcal</th>
           <th class="r">Bílkoviny</th>
           <th class="r">Sacharidy</th>
+          <th class="r">z toho cukry</th>
           <th class="r">Tuky</th>
+          <th class="r">Vláknina</th>
+          <th class="r">Sůl</th>
           <th class="r">≈ Cena</th>
           <th class="r">Podíl</th>
         </tr>
@@ -7412,7 +7424,10 @@ function renderMealDetail(id) {
           <td class="r td-kcal">${Math.round(tot.kcal)} kcal</td>
           <td class="r td-prot">${tot.prot.toFixed(1)} g</td>
           <td class="r td-carb">${tot.carb.toFixed(1)} g</td>
+          <td class="r" style="color:#e08fc0">${tot.sugar.toFixed(1)} g</td>
           <td class="r td-fat">${tot.fat.toFixed(1)} g</td>
+          <td class="r" style="color:#7fb88a">${tot.fiber.toFixed(1)} g</td>
+          <td class="r" style="color:#6fa8c7">${tot.salt.toFixed(2)} g</td>
           <td class="r" style="color:var(--accent)">${meal.ings.some(i=>i.price>0) ? fmtPrice(meal.ings.reduce((s,i)=>s+(i.price||0),0)) || '—' : '—'}</td>
           <td class="r">100%</td>
         </tr>
@@ -7457,6 +7472,9 @@ function renderMeals() {
   list.innerHTML = filtered.map(m => {
     const cProt = m.prot * 4, cCarb = m.carb * 4, cFat = m.fat * 9;
     const cTot  = cProt + cCarb + cFat || 1;
+    const mSugar = m.sugar != null ? m.sugar : (m.ings||[]).reduce((s,i)=>s+(i.sugar||0),0);
+    const mFiber = m.fiber != null ? m.fiber : (m.ings||[]).reduce((s,i)=>s+(i.fiber||0),0);
+    const mSalt  = m.salt  != null ? m.salt  : (m.ings||[]).reduce((s,i)=>s+(i.salt||0),0);
     const ingsPreview = m.ings.slice(0, 4).map(i => i.name).join(', ') + (m.ings.length > 4 ? ' +' + (m.ings.length-4) : '');
     const isEditing = editingMealId === m.id;
     const mtype = m.type || 'snidane';
@@ -7470,7 +7488,10 @@ function renderMeals() {
         <div class="meal-card-macros">
           <span class="meal-card-macro" style="color:var(--accent3)">B: ${m.prot.toFixed(1)} g</span>
           <span class="meal-card-macro" style="color:var(--accent2)">S: ${m.carb.toFixed(1)} g</span>
+          ${mSugar > 0 ? `<span class="meal-card-macro" style="color:#e08fc0">cukr: ${mSugar.toFixed(1)} g</span>` : ''}
           <span class="meal-card-macro" style="color:var(--accent4)">T: ${m.fat.toFixed(1)} g</span>
+          ${mFiber > 0 ? `<span class="meal-card-macro" style="color:#7fb88a">vlák: ${mFiber.toFixed(1)} g</span>` : ''}
+          ${mSalt > 0 ? `<span class="meal-card-macro" style="color:#6fa8c7">sůl: ${mSalt.toFixed(2)} g</span>` : ''}
           <span class="meal-card-macro" style="color:var(--muted)">${m.ings.length} ingrediencí</span>
           ${(() => { const p = (m.ings||[]).reduce((s,i)=>s+(i.price||0),0); return p > 0 ? `<span class="price-tag-sm">${fmtPrice(p)}</span>` : ''; })()}
         </div>
@@ -9446,6 +9467,9 @@ function jnRenderDays() {
               ${it.prot ? ` · B ${Number(it.prot).toFixed(1)}` : ''}
               ${it.carb ? ` · S ${Number(it.carb).toFixed(1)}` : ''}
               ${it.fat  ? ` · T ${Number(it.fat ).toFixed(1)}` : ''}
+              ${it.sugar ? ` · cukr ${Number(it.sugar).toFixed(1)}` : ''}
+              ${it.fiber ? ` · vlák ${Number(it.fiber).toFixed(1)}` : ''}
+              ${it.salt  ? ` · sůl ${Number(it.salt).toFixed(2)}` : ''}
             </span>
             <button class="jn-combo-item-x" onclick="jnComboRemoveItem('${key}',${idx},${sIdx})" title="Vyjmout z bloku">✕</button>
           </div>`;
@@ -9459,6 +9483,9 @@ function jnRenderDays() {
             ${e.prot  ? `<span class="jn-macro-chip prot">B ${Number(e.prot).toFixed(1)}g</span>` : ''}
             ${e.carb  ? `<span class="jn-macro-chip carb">S ${Number(e.carb).toFixed(1)}g</span>` : ''}
             ${e.fat   ? `<span class="jn-macro-chip fat">T ${Number(e.fat).toFixed(1)}g</span>` : ''}
+            ${e.sugar ? `<span class="jn-macro-chip sugar">cukr ${Number(e.sugar).toFixed(1)}g</span>` : ''}
+            ${e.fiber ? `<span class="jn-macro-chip fiber">vlák ${Number(e.fiber).toFixed(1)}g</span>` : ''}
+            ${e.salt  ? `<span class="jn-macro-chip salt">sůl ${Number(e.salt).toFixed(2)}g</span>` : ''}
             ${e.price ? `<span class="price-tag-sm">${fmtPrice(e.price)}</span>` : ''}
           </div>
           <div class="jn-combo-items">${itemsHtml}</div>
@@ -9479,6 +9506,9 @@ function jnRenderDays() {
           ${e.prot  ? `<span class="jn-macro-chip prot">B ${Number(e.prot).toFixed(1)}g</span>` : ''}
           ${e.carb  ? `<span class="jn-macro-chip carb">S ${Number(e.carb).toFixed(1)}g</span>` : ''}
           ${e.fat   ? `<span class="jn-macro-chip fat">T ${Number(e.fat).toFixed(1)}g</span>` : ''}
+          ${e.sugar ? `<span class="jn-macro-chip sugar">cukr ${Number(e.sugar).toFixed(1)}g</span>` : ''}
+          ${e.fiber ? `<span class="jn-macro-chip fiber">vlák ${Number(e.fiber).toFixed(1)}g</span>` : ''}
+          ${e.salt  ? `<span class="jn-macro-chip salt">sůl ${Number(e.salt).toFixed(2)}g</span>` : ''}
           ${e.price ? `<span class="price-tag-sm">${fmtPrice(e.price)}</span>` : ''}
         </div>
         <div class="jn-meal-actions-bar">
@@ -9762,6 +9792,9 @@ function jnTileClick(key) {
                 ${it.prot ? ` · B ${Number(it.prot).toFixed(1)}` : ''}
                 ${it.carb ? ` · S ${Number(it.carb).toFixed(1)}` : ''}
                 ${it.fat  ? ` · T ${Number(it.fat ).toFixed(1)}` : ''}
+                ${it.sugar ? ` · cukr ${Number(it.sugar).toFixed(1)}` : ''}
+                ${it.fiber ? ` · vlák ${Number(it.fiber).toFixed(1)}` : ''}
+                ${it.salt  ? ` · sůl ${Number(it.salt).toFixed(2)}` : ''}
               </span>
               <button class="jn-combo-item-x" onclick="jnComboRemoveItem('${key}',${idx},${sIdx});jnTileClick('${key}')" title="Vyjmout z bloku">✕</button>
             </div>`;
@@ -9775,6 +9808,9 @@ function jnTileClick(key) {
               ${e.prot  ? `<span class="jn-macro-chip prot">B ${Number(e.prot).toFixed(1)}g</span>` : ''}
               ${e.carb  ? `<span class="jn-macro-chip carb">S ${Number(e.carb).toFixed(1)}g</span>` : ''}
               ${e.fat   ? `<span class="jn-macro-chip fat">T ${Number(e.fat).toFixed(1)}g</span>` : ''}
+              ${e.sugar ? `<span class="jn-macro-chip sugar">cukr ${Number(e.sugar).toFixed(1)}g</span>` : ''}
+              ${e.fiber ? `<span class="jn-macro-chip fiber">vlák ${Number(e.fiber).toFixed(1)}g</span>` : ''}
+              ${e.salt  ? `<span class="jn-macro-chip salt">sůl ${Number(e.salt).toFixed(2)}g</span>` : ''}
               ${e.price ? `<span class="price-tag-sm">${fmtPrice(e.price)}</span>` : ''}
             </div>
             <div class="jn-combo-items">${itemsHtml}</div>
@@ -9795,6 +9831,9 @@ function jnTileClick(key) {
             ${e.prot  ? `<span class="jn-macro-chip prot">B ${Number(e.prot).toFixed(1)}g</span>` : ''}
             ${e.carb  ? `<span class="jn-macro-chip carb">S ${Number(e.carb).toFixed(1)}g</span>` : ''}
             ${e.fat   ? `<span class="jn-macro-chip fat">T ${Number(e.fat).toFixed(1)}g</span>` : ''}
+            ${e.sugar ? `<span class="jn-macro-chip sugar">cukr ${Number(e.sugar).toFixed(1)}g</span>` : ''}
+            ${e.fiber ? `<span class="jn-macro-chip fiber">vlák ${Number(e.fiber).toFixed(1)}g</span>` : ''}
+            ${e.salt  ? `<span class="jn-macro-chip salt">sůl ${Number(e.salt).toFixed(2)}g</span>` : ''}
             ${e.price ? `<span class="price-tag-sm">${fmtPrice(e.price)}</span>` : ''}
           </div>
           <div class="jn-meal-actions-bar">
