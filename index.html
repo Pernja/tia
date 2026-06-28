@@ -1786,19 +1786,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   .meal-detail-table {
     width: 100%; border-collapse: collapse; margin-bottom: 16px;
   }
+  /* Scroll wrapper — zabrání přetékání tabulky s 9 sloupci */
+  .meal-detail-wrap {
+    overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -4px; padding: 0 4px;
+  }
   .meal-detail-table thead tr { background: var(--surface); border-radius: 8px; }
   .meal-detail-table th {
     font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em; color: var(--muted);
-    text-transform: uppercase; padding: 9px 12px; text-align: left; white-space: nowrap;
+    text-transform: uppercase; padding: 9px 10px; text-align: left; white-space: nowrap;
   }
   .meal-detail-table th.r { text-align: right; }
   .meal-detail-table td {
-    font-family: var(--font-mono); font-size: 12px; padding: 9px 12px;
-    border-top: 1px solid var(--border);
+    font-family: var(--font-mono); font-size: 12px; padding: 9px 10px;
+    border-top: 1px solid var(--border); white-space: nowrap;
   }
   .meal-detail-table td.r { text-align: right; }
   .meal-detail-table tr:hover td { background: rgba(255,255,255,.02); }
-  .meal-detail-table .td-name { font-weight: 600; font-family: var(--font-head); font-size: 13px; }
+  .meal-detail-table .td-name { font-weight: 600; font-family: var(--font-head); font-size: 13px; white-space: normal; min-width: 110px; }
   .meal-detail-table .td-amt  { color: var(--muted); }
   .meal-detail-table .td-kcal { color: var(--accent); font-weight: 600; }
   .meal-detail-table .td-prot { color: var(--accent3); }
@@ -7400,7 +7404,7 @@ function renderMealDetail(id) {
       </div>
       <button class="detail-close" onclick="toggleMealDetail(${id})" title="Zavřít">✕</button>
     </div>
-    <table class="meal-detail-table">
+    <div class="meal-detail-wrap"><table class="meal-detail-table">
       <thead>
         <tr>
           <th>Potravina</th>
@@ -7432,7 +7436,7 @@ function renderMealDetail(id) {
           <td class="r">100%</td>
         </tr>
       </tfoot>
-    </table>
+    </table></div>
     <div style="margin-top:4px">
       <div class="section-title" style="margin-bottom:10px">// Kalorické zastoupení makronutrientů</div>
       <div class="detail-bar-row">
