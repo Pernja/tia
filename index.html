@@ -13,21 +13,8 @@ const SUPA_URL = 'https://rbupldmzxdfhxzsqqxoa.supabase.co';
 const SUPA_KEY = 'sb_publishable_II_utl7xhPc_GG-bxgAuoQ_TMru3aOm';
 const supa = supabase.createClient(SUPA_URL, SUPA_KEY);
 
-// Mapování localStorage klíčů na Supabase tabulky (normalizované schéma v2)
+// Mapování localStorage klíčů na Supabase tabulky
 const SUPA_TABLE_MAP = {
-  'jidlo-2026':      'tia_nakup_v2',
-  'jidlo-meals':     'tia_meals_v2',
-  'jidlo-jidelnicek':'tia_jidelnicek_v2',
-  'jidlo-foods':     'tia_foods_v2',
-  'jidlo-profil':    'tia_profil_v2',
-  'jidlo-aktivity':  'tia_aktivity_v2',
-  'jidlo-suplementy':'tia_suplementy_v2',
-  'jidlo-vaha':      'tia_vaha_v2',
-};
-
-// Stará (blob) schémata — slouží jen k jednorázové migraci, pokud jsou nové
-// tabulky pro daného uživatele ještě prázdné. Staré tabulky se nemažou.
-const SUPA_OLD_TABLE_MAP = {
   'jidlo-2026':      'tia_nakup',
   'jidlo-meals':     'tia_meals',
   'jidlo-jidelnicek':'tia_jidelnicek',
@@ -37,116 +24,6 @@ const SUPA_OLD_TABLE_MAP = {
   'jidlo-suplementy':'tia_suplementy',
   'jidlo-vaha':      'tia_vaha',
 };
-
-const _NUM = v => { const n = +v; return isNaN(n) ? 0 : n; };
-
-// ── PŘEVOD: kolekce (z localStorage) → pole řádků pro Supabase ────────────────
-// Vrací { rows, keyCol, ids } pro list-tabulky, nebo speciální tvar pro singleton.
-function _collectionToRows(lsKey, value, uid) {
-  const now = new Date().toISOString();
-  switch (lsKey) {
-    case 'jidlo-foods': {
-      const rows = (value||[]).filter(f=>f && f.id!=null).map(f => ({
-        user_id: uid, item_id: f.id, name: f.name||'', unit: f.unit||'100g', cat: f.cat||null,
-        kcal:_NUM(f.kcal), prot:_NUM(f.prot), carb:_NUM(f.carb), sugar:_NUM(f.sugar),
-        fat:_NUM(f.fat), fiber:_NUM(f.fiber), salt:_NUM(f.salt), price:_NUM(f.price),
-        baleni_g: f.baleniG ?? null, data: f, updated_at: now,
-      }));
-      return { rows, keyCol: 'item_id', ids: rows.map(r=>r.item_id) };
-    }
-    case 'jidlo-meals': {
-      const rows = (value||[]).filter(m=>m && m.id!=null).map(m => ({
-        user_id: uid, item_id: m.id, name: m.name||'', type: m.type||null,
-        kcal:_NUM(m.kcal), prot:_NUM(m.prot), carb:_NUM(m.carb), sugar:_NUM(m.sugar),
-        fat:_NUM(m.fat), fiber:_NUM(m.fiber), salt:_NUM(m.salt), price:_NUM(m.price),
-        ings: m.ings ?? null, data: m, updated_at: now,
-      }));
-      return { rows, keyCol: 'item_id', ids: rows.map(r=>r.item_id) };
-    }
-    case 'jidlo-suplementy': {
-      const rows = (value||[]).filter(s=>s && s.id!=null).map(s => ({
-        user_id: uid, item_id: s.id, name: s.name||'', brand: s.brand||null, type: s.type||null,
-        daily:_NUM(s.daily), dose_g:_NUM(s.doseG), price:_NUM(s.price), pkg_count:_NUM(s.pkgCount),
-        days_supply:_NUM(s.daysSupply), price_per_day:_NUM(s.pricePerDay), kcal:_NUM(s.kcal),
-        prot:_NUM(s.prot), note: s.note||null, data: s, updated_at: now,
-      }));
-      return { rows, keyCol: 'item_id', ids: rows.map(r=>r.item_id) };
-    }
-    case 'jidlo-2026': {
-      const rows = (value||[]).filter(i=>i && i.id!=null).map(i => ({
-        user_id: uid, item_id: i.id, name: i.name||'', qty: i.qty||null,
-        week:_NUM(i.week), cat: (i.cat!=null?i.cat:null), data: i, updated_at: now,
-      }));
-      return { rows, keyCol: 'item_id', ids: rows.map(r=>r.item_id) };
-    }
-    case 'jidlo-aktivity': {
-      const rows = (value||[]).filter(a=>a && a.id!=null).map(a => ({
-        user_id: uid, item_id: a.id, typ: a.typ||null,
-        kroky: a.kroky!=null?_NUM(a.kroky):null, tydne: a.tydne!=null?_NUM(a.tydne):null,
-        min: a.min!=null?_NUM(a.min):null, data: a, updated_at: now,
-      }));
-      return { rows, keyCol: 'item_id', ids: rows.map(r=>r.item_id) };
-    }
-    case 'jidlo-vaha': {
-      const rows = (value||[]).filter(v=>v && v.date).map(v => ({
-        user_id: uid, day: v.date, kg:_NUM(v.kg), updated_at: now,
-      }));
-      return { rows, keyCol: 'day', ids: rows.map(r=>r.day) };
-    }
-    case 'jidlo-jidelnicek': {
-      const sum = (entries,k)=> (entries||[]).reduce((s,e)=>s+_NUM(e[k]),0);
-      const days = Object.keys(value||{}).filter(k=>/^\d{4}-\d{2}-\d{2}$/.test(k));
-      const rows = days.map(day => {
-        const entries = value[day] || [];
-        return { user_id: uid, day, entries,
-          kcal:sum(entries,'kcal'), prot:sum(entries,'prot'), carb:sum(entries,'carb'),
-          sugar:sum(entries,'sugar'), fat:sum(entries,'fat'), fiber:sum(entries,'fiber'),
-          salt:sum(entries,'salt'), price:sum(entries,'price'), updated_at: now };
-      });
-      return { rows, keyCol: 'day', ids: days, meta: (value && value._meta) || null };
-    }
-    case 'jidlo-profil':
-      return { singleton: true, row: { user_id: uid, data: value, updated_at: now } };
-    default:
-      return { rows: [], keyCol: 'item_id', ids: [] };
-  }
-}
-
-// ── PŘEVOD: řádky ze Supabase → kolekce (do localStorage) ─────────────────────
-function _rowsToCollection(lsKey, rows) {
-  switch (lsKey) {
-    case 'jidlo-foods':
-    case 'jidlo-meals':
-    case 'jidlo-suplementy':
-    case 'jidlo-2026':
-    case 'jidlo-aktivity':
-      return (rows||[]).map(r => r.data);
-    case 'jidlo-vaha':
-      return (rows||[]).map(r => ({ kg: r.kg, date: (typeof r.day==='string'? r.day.slice(0,10): r.day) }));
-    case 'jidlo-jidelnicek': {
-      const out = {};
-      (rows||[]).forEach(r => { const d = (typeof r.day==='string'? r.day.slice(0,10): r.day); out[d] = r.entries || []; });
-      return out;
-    }
-    case 'jidlo-profil':
-      return (rows && rows[0]) ? rows[0].data : null;
-    default:
-      return [];
-  }
-}
-
-// Smaž z tabulky řádky, které už nejsou v aktuální kolekci (klíč keyCol).
-async function _supaDeleteMissing(table, uid, keyCol, ids) {
-  if (!ids || ids.length === 0) {
-    const { error } = await supa.from(table).delete().eq('user_id', uid);
-    if (error) throw error;
-    return;
-  }
-  const isText = keyCol === 'day';
-  const list = ids.map(v => isText ? `"${v}"` : v).join(',');
-  const { error } = await supa.from(table).delete().eq('user_id', uid).not(keyCol, 'in', `(${list})`);
-  if (error) throw error;
-}
 
 const _supaCache = {};
 let _supaReady = false;
@@ -189,6 +66,7 @@ function _updateSyncUI() {
 async function supaForceSyncAll() {
   if (!_supaReady || !_currentUserId) return;
   _failedSync.clear();
+  const dot = document.getElementById('supa-status-dot');
   const lbl = document.getElementById('supa-status-label');
   if (lbl) lbl.textContent = 'Synchronizuji vše…';
 
@@ -197,7 +75,7 @@ async function supaForceSyncAll() {
     if (raw == null) continue;
     try {
       const value = JSON.parse(raw);
-      await _supaWriteCollection(lsKey, value);
+      await _supaUpsert(lsKey, value);
     } catch(e) {
       _failedSync.add(lsKey);
       console.warn('Force sync failed', lsKey, e);
@@ -229,37 +107,19 @@ async function logoutUser() {
 async function supaLoadAll(userId) {
   try {
     for (const [lsKey, table] of Object.entries(SUPA_TABLE_MAP)) {
-      try {
-        // 1) Načti z nového (normalizovaného) schématu
-        const { data: rows, error } = await supa.from(table).select('*').eq('user_id', userId);
-        if (error) { console.warn('Supabase load error', table, error); continue; }
-
-        if (rows && rows.length > 0) {
-          let coll = _rowsToCollection(lsKey, rows);
-          // Data z nového (normalizovaného) schématu jsou už po opravě dat,
-          // proto jídelníčku rovnou nastavíme dateFix, ať se jnFixDateKeys nespustí znovu.
-          if (lsKey === 'jidlo-jidelnicek' && coll && typeof coll === 'object') {
-            coll._meta = Object.assign({}, coll._meta, { dateFix: 1 });
-          }
-          if (coll != null) { _origSetItem(lsKey, JSON.stringify(coll)); _supaCache[lsKey] = coll; }
-          continue;
-        }
-
-        // 2) Nové tabulky jsou prázdné → jednorázová migrace ze staré blob-tabulky
-        const oldTable = SUPA_OLD_TABLE_MAP[lsKey];
-        if (oldTable) {
-          const { data: oldRow } = await supa.from(oldTable).select('data').eq('user_id', userId).maybeSingle();
-          if (oldRow && oldRow.data != null) {
-            _origSetItem(lsKey, JSON.stringify(oldRow.data));
-            _supaCache[lsKey] = oldRow.data;
-            // Přenes do nového schématu (běží jen jednou, protože pak už nová tabulka data má)
-            try { await _supaWriteCollection(lsKey, oldRow.data); console.log('↪ migrováno do', table); }
-            catch(mErr) { console.warn('Migrace selhala', table, mErr); }
-          }
-        }
-      } catch(inner) { console.warn('Load/migrate selhal', table, inner); }
+      const { data, error } = await supa.from(table)
+        .select('data')
+        .eq('user_id', userId)
+        .maybeSingle();
+      if (error) { console.warn('Supabase load error', table, error); continue; }
+      if (data) {
+        // Cloud má vždy prioritu — přepíšeme localStorage přímo přes _origSetItem.
+        // Tím se vyhneme situaci na iOS Safari kdy je localStorage smazán
+        // a prázdná lokální data by "vyhrála" nad cloudovými v _syncLocalIfNewer.
+        _origSetItem(lsKey, JSON.stringify(data.data));
+        _supaCache[lsKey] = data.data;
+      }
     }
-
     _supaReady = true;
     console.log('✓ Supabase data načtena');
   } catch(e) {
@@ -269,26 +129,15 @@ async function supaLoadAll(userId) {
   _updateSyncUI();
 }
 
-// Zapíše celou kolekci do normalizovaného schématu: upsert aktuálních řádků
-// + smazání těch, které už v kolekci nejsou.
-async function _supaWriteCollection(lsKey, value) {
+// Upsert pomocí ON CONFLICT — jeden dotaz místo SELECT + UPDATE/INSERT
+async function _supaUpsert(lsKey, value) {
   const table = SUPA_TABLE_MAP[lsKey];
   if (!table || !_currentUserId) return;
-  const uid = _currentUserId;
-  const spec = _collectionToRows(lsKey, value, uid);
-
-  // Singleton (profil)
-  if (spec.singleton) {
-    const { error } = await supa.from(table).upsert(spec.row, { onConflict: 'user_id' });
-    if (error) throw error;
-    return;
-  }
-
-  if (spec.rows.length > 0) {
-    const { error } = await supa.from(table).upsert(spec.rows, { onConflict: `user_id,${spec.keyCol}` });
-    if (error) throw error;
-  }
-  await _supaDeleteMissing(table, uid, spec.keyCol, spec.ids);
+  const { error } = await supa.from(table).upsert(
+    { user_id: _currentUserId, data: value, updated: new Date().toISOString() },
+    { onConflict: 'user_id' }
+  );
+  if (error) throw error;
 }
 
 async function supaSave(lsKey, value) {
@@ -297,7 +146,7 @@ async function supaSave(lsKey, value) {
   _pendingSync.add(lsKey);
   _updateSyncUI();
   try {
-    await _supaWriteCollection(lsKey, value);
+    await _supaUpsert(lsKey, value);
     _pendingSync.delete(lsKey);
     _failedSync.delete(lsKey);
   } catch(e) {
@@ -403,7 +252,7 @@ document.addEventListener('visibilitychange', async () => {
       const raw = localStorage.getItem(lsKey);
       if (raw == null) continue;
       try {
-        await _supaWriteCollection(lsKey, JSON.parse(raw));
+        await _supaUpsert(lsKey, JSON.parse(raw));
         _pendingSync.delete(lsKey);
         _failedSync.delete(lsKey);
       } catch(e) {
@@ -1541,6 +1390,93 @@ document.addEventListener('DOMContentLoaded', async () => {
   .food-table-wrap td { padding: 0; font-size: 13px; }
   .food-table-wrap td .view-cell { padding: 11px 14px; display: flex; align-items: center; }
   .food-table-wrap td.r .view-cell { justify-content: flex-end; }
+
+  /* Klikací název potraviny → detail popup */
+  .ft-name-btn {
+    background: none; border: none; color: var(--text); font: inherit; font-weight: 600;
+    text-align: left; padding: 0; cursor: pointer; display: flex; align-items: center;
+    gap: 8px; width: 100%;
+  }
+  .ft-name-btn:hover { color: var(--accent); }
+  .ft-name-chev { display: none; margin-left: auto; color: var(--muted); font-size: 20px; line-height: 1; }
+
+  /* MOBIL: tabulka potravin → jen název, zbytek v popupu */
+  @media (max-width: 600px) {
+    .food-table-wrap { overflow-x: visible !important; }
+    .food-table-wrap table { min-width: 0 !important; }
+    .food-table-wrap th:not(.ft-keep-col),
+    .food-table-wrap td:not(.ft-keep-col) { display: none !important; }
+    .food-table-wrap td.ft-keep-col .view-cell { padding: 15px 14px; }
+    .food-table-wrap th.ft-keep-col { padding: 10px 14px; }
+    .ft-name-chev { display: inline; }
+    .ft-name-btn { font-size: 15px; }
+  }
+
+  /* ── Detail potraviny (popup) ── */
+  .fd-modal-overlay {
+    display: none; position: fixed; inset: 0; z-index: 2000;
+    background: rgba(0,0,0,.62); backdrop-filter: blur(3px);
+    align-items: center; justify-content: center; padding: 18px;
+  }
+  .fd-modal-overlay.open { display: flex; }
+  .fd-modal {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+    width: 100%; max-width: 420px; max-height: 88vh; overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(0,0,0,.5);
+  }
+  .fd-modal-head {
+    display: flex; align-items: flex-start; gap: 10px; padding: 18px 18px 12px;
+    border-bottom: 1px solid var(--border); position: sticky; top: 0;
+    background: var(--surface); border-radius: 16px 16px 0 0;
+  }
+  .fd-modal-title { font-size: 1.15rem; font-weight: 700; color: var(--text); flex: 1; line-height: 1.25; }
+  .fd-modal-x {
+    background: var(--card); border: 1px solid var(--border); color: var(--muted);
+    width: 30px; height: 30px; border-radius: 8px; cursor: pointer; flex-shrink: 0; font-size: 14px;
+  }
+  .fd-modal-x:hover { color: var(--text); }
+  .fd-modal-body { padding: 14px 18px 18px; }
+  .fd-cat-badge { margin-bottom: 12px; }
+  .fd-basis {
+    font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 8px;
+  }
+  .fd-rows { display: flex; flex-direction: column; }
+  .fd-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 2px; border-bottom: 1px solid var(--border); font-size: 14px;
+  }
+  .fd-row:last-child { border-bottom: none; }
+  .fd-row > span { color: var(--muted); }
+  .fd-row > b { font-family: var(--font-mono); font-weight: 700; color: var(--text); }
+  .fd-row.sub > span { padding-left: 14px; color: var(--muted); font-size: 12.5px; }
+  .fd-row.sub { padding-top: 6px; padding-bottom: 6px; }
+  .fd-row.kcal > b { color: var(--accent); }
+  .fd-row.prot > b { color: var(--accent3); }
+  .fd-row.carb > b { color: var(--accent2); }
+  .fd-row.fat  > b { color: var(--accent4); }
+  .fd-row.price > b { color: var(--accent); }
+  .fd-modal-actions { display: flex; gap: 8px; margin-top: 16px; }
+  .fd-btn {
+    flex: 1; padding: 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--card); color: var(--text); font-weight: 600; font-size: 14px; cursor: pointer;
+  }
+  .fd-btn:hover { border-color: var(--accent); }
+  .fd-btn.edit { background: rgba(245,200,66,.12); border-color: rgba(245,200,66,.4); color: var(--accent); }
+  .fd-btn.save { background: var(--accent); color: #1a1a1a; border-color: var(--accent); }
+  .fd-btn.del  { background: rgba(244,124,90,.1); border-color: rgba(244,124,90,.35); color: var(--accent3); }
+  /* edit form v popupu */
+  .fd-edit-field { margin-bottom: 11px; }
+  .fd-edit-field > label {
+    display: block; font-family: var(--font-mono); font-size: 9px; letter-spacing: .12em;
+    text-transform: uppercase; color: var(--muted); margin-bottom: 5px;
+  }
+  .fd-edit-field input, .fd-edit-field select {
+    width: 100%; background: var(--card); border: 1.5px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: var(--font-mono); font-size: 14px; padding: 9px 11px; outline: none;
+  }
+  .fd-edit-field input:focus, .fd-edit-field select:focus { border-color: var(--accent); }
+  .fd-edit-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .food-table-wrap tbody tr { border-top: 1px solid var(--border); transition: background .15s; }
   .food-table-wrap tbody tr:hover { background: rgba(255,255,255,.02); }
   .food-table-wrap thead tr { background: var(--surface); }
@@ -2180,6 +2116,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
   }
   @media (max-width: 600px) { .cg-macro-grid { grid-template-columns: 1fr; } }
+  /* Vláknina & sůl — 2 sloupce na desktopu, 1 na mobilu (bez inline stylu, ať media query platí) */
+  .cg-extra-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  @media (max-width: 600px) { .cg-extra-grid { grid-template-columns: 1fr; } }
   .cg-macro-item { display: flex; flex-direction: column; gap: 7px; }
   .cg-macro-label {
     font-family: var(--font-mono); font-size: 9px; letter-spacing: .14em;
@@ -4140,7 +4079,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         <thead>
           <tr>
             <th class="cb-th hidden" id="food-th-cb"><input type="checkbox" class="select-all-cb" id="food-select-all" onchange="toggleFoodSelectAll(this)"></th>
-            <th class="ft-sortable" onclick="foodSortBy('name')" id="fth-name">Potravina<span class="ft-sort-arrow">↕</span></th>
+            <th class="ft-sortable ft-keep-col" onclick="foodSortBy('name')" id="fth-name">Potravina<span class="ft-sort-arrow">↕</span></th>
             <th>Kategorie</th>
             <th class="r">Jednotka</th>
             <th class="r ft-sortable" onclick="foodSortBy('kcal')" id="fth-kcal">Kcal<span class="ft-sort-arrow">↕</span></th>
@@ -4789,6 +4728,81 @@ document.addEventListener('DOMContentLoaded', async () => {
     </div>
 
   </div><!-- /page-jidelnicek -->
+
+  <!-- Detail / editace potraviny (popup) -->
+  <div class="fd-modal-overlay" id="food-detail-modal" onclick="if(event.target===this)foodDetailClose()">
+    <div class="fd-modal">
+      <div class="fd-modal-head">
+        <span class="fd-modal-title" id="fdm-title">—</span>
+        <button class="fd-modal-x" onclick="foodDetailClose()" title="Zavřít">✕</button>
+      </div>
+      <div class="fd-modal-body">
+        <!-- NÁHLED -->
+        <div id="fdm-view">
+          <div class="fd-cat-badge" id="fdm-cat"></div>
+          <div class="fd-basis" id="fdm-basis">Hodnoty na 100 g</div>
+          <div class="fd-rows">
+            <div class="fd-row kcal"><span>Kalorie</span><b id="fdm-kcal">—</b></div>
+            <div class="fd-row prot"><span>Bílkoviny</span><b id="fdm-prot">—</b></div>
+            <div class="fd-row carb"><span>Sacharidy</span><b id="fdm-carb">—</b></div>
+            <div class="fd-row sub"><span>z toho cukry</span><b id="fdm-sugar">—</b></div>
+            <div class="fd-row fat"><span>Tuky</span><b id="fdm-fat">—</b></div>
+            <div class="fd-row"><span>Vláknina</span><b id="fdm-fiber">—</b></div>
+            <div class="fd-row"><span>Sůl</span><b id="fdm-salt">—</b></div>
+            <div class="fd-row price"><span>Cena</span><b id="fdm-price">—</b></div>
+          </div>
+          <div class="fd-modal-actions">
+            <button class="fd-btn edit" onclick="foodDetailEdit()">✏ Upravit</button>
+            <button class="fd-btn del"  onclick="foodDetailDelete()">🗑 Smazat</button>
+          </div>
+        </div>
+        <!-- EDITACE -->
+        <div id="fdm-edit" style="display:none;">
+          <div class="fd-edit-field">
+            <label>Název</label>
+            <input type="text" id="fdm-e-name">
+          </div>
+          <div class="fd-edit-field">
+            <label>Kategorie</label>
+            <select id="fdm-e-cat"></select>
+          </div>
+          <div class="fd-edit-grid">
+            <div class="fd-edit-field">
+              <label>Jednotka</label>
+              <select id="fdm-e-unit" onchange="foodDetailUnitChange()">
+                <option value="10g">10 g</option>
+                <option value="100g">100 g</option>
+                <option value="1kg">1 kg</option>
+                <option value="100ml">100 ml</option>
+                <option value="1l">1 l</option>
+                <option value="ks">1 ks</option>
+                <option value="baleni">Balení</option>
+              </select>
+            </div>
+            <div class="fd-edit-field" id="fdm-e-baleni-wrap" style="display:none;">
+              <label>Gramáž balení (g)</label>
+              <input type="number" id="fdm-e-baleni" min="1" placeholder="g">
+            </div>
+          </div>
+          <div class="fd-basis" id="fdm-e-basis" style="margin:2px 0 10px;">Hodnoty na 100 g</div>
+          <div class="fd-edit-grid">
+            <div class="fd-edit-field"><label>Kalorie</label><input type="number" id="fdm-e-kcal" min="0" step="1"></div>
+            <div class="fd-edit-field"><label>Cena (Kč)</label><input type="number" id="fdm-e-price" min="0" step="0.1"></div>
+            <div class="fd-edit-field"><label>Bílkoviny (g)</label><input type="number" id="fdm-e-prot" min="0" step="0.1"></div>
+            <div class="fd-edit-field"><label>Sacharidy (g)</label><input type="number" id="fdm-e-carb" min="0" step="0.1"></div>
+            <div class="fd-edit-field"><label>z toho cukry (g)</label><input type="number" id="fdm-e-sugar" min="0" step="0.1"></div>
+            <div class="fd-edit-field"><label>Tuky (g)</label><input type="number" id="fdm-e-fat" min="0" step="0.1"></div>
+            <div class="fd-edit-field"><label>Vláknina (g)</label><input type="number" id="fdm-e-fiber" min="0" step="0.1"></div>
+            <div class="fd-edit-field"><label>Sůl (g)</label><input type="number" id="fdm-e-salt" min="0" step="0.01"></div>
+          </div>
+          <div class="fd-modal-actions">
+            <button class="fd-btn save" onclick="foodDetailSave()">✓ Uložit</button>
+            <button class="fd-btn" onclick="foodDetailShowView()">Zrušit</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <!-- Edit modal pro jídlo v jídelníčku -->
   <div class="modal-overlay" id="jn-entry-edit-modal" onclick="if(event.target===this)jnCloseEntryEdit()">
@@ -5582,7 +5596,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           <!-- Vláknina a sůl — samostatné denní cíle (nepočítají se z váhy) -->
           <div class="cg-section" style="margin-top:18px;">
             <div class="cg-section-title">// Vláknina &amp; sůl <span style="font-weight:400;color:var(--muted);font-size:11px;text-transform:none;letter-spacing:0;">— samostatné denní cíle, nezávislé na makrech</span></div>
-            <div class="cg-macro-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="cg-extra-grid">
               <div class="cg-macro-item">
                 <div class="cg-macro-label"><span class="cg-macro-dot" style="background:#7fb88a"></span> <span style="color:#7fb88a">Vláknina</span></div>
                 <div class="cg-macro-input-row">
@@ -8053,7 +8067,7 @@ function renderFoods() {
   });
 
   if (visibleFoods.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11"><div class="empty">' + (foodSearch ? 'Žádná shoda pro „'+foodSearch+'"' : foodCatFilterActive.size > 0 ? 'Žádné potraviny v těchto kategoriích' : 'Žádné potraviny v databázi. Přidej první! 🥗') + '</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="ft-keep-col"><div class="empty">' + (foodSearch ? 'Žádná shoda pro „'+foodSearch+'"' : foodCatFilterActive.size > 0 ? 'Žádné potraviny v těchto kategoriích' : 'Žádné potraviny v databázi. Přidej první! 🥗') + '</div></td></tr>';
     document.getElementById('fs-count').textContent = '0';
     ['fs-kcal','fs-prot','fs-carb','fs-fat'].forEach(id => document.getElementById(id).textContent = '—');
     const pg2 = document.getElementById('food-pagination'); if (pg2) pg2.innerHTML = '';
@@ -8061,7 +8075,7 @@ function renderFoods() {
   }
 
   if (foods.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="11"><div class="empty">Žádné potraviny v databázi. Přidej první! 🥗</div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="ft-keep-col"><div class="empty">Žádné potraviny v databázi. Přidej první! 🥗</div></td></tr>';
     document.getElementById('fs-count').textContent = '0';
     ['fs-kcal','fs-prot','fs-carb','fs-fat'].forEach(id => document.getElementById(id).textContent = '—');
     return;
@@ -8133,7 +8147,7 @@ function renderFoods() {
     return `
       <tr${checked ? ' class="selected"' : ''}>
         <td class="cb-cell${foodSelectMode ? ' visible' : ''}"><div class="view-cell"><input type="checkbox" class="row-cb" ${checked?'checked':''} onchange="toggleFoodRow(${f.id},this)"></div></td>
-        <td><div class="view-cell"><span class="item-name">${f.name}</span></div></td>
+        <td class="ft-keep-col"><div class="view-cell"><button class="ft-name-btn" onclick="foodDetailOpen(${f.id})"><span class="item-name">${f.name}</span><span class="ft-name-chev">›</span></button></div></td>
         <td><div class="view-cell">${foodCatBadge(f.cat)}</div></td>
         <td class="r"><div class="view-cell">${unitBadge(f.unit || '100g')}${f.unit==='baleni'&&f.baleniG?`<span style="font-family:var(--font-mono);font-size:9px;color:var(--muted);margin-left:5px;">${f.baleniG}g</span>`:''}</div></td>
         <td class="r"><div class="view-cell"><span class="kcal-val">${f.kcal > 0 ? f.kcal : '—'}</span></div></td>
@@ -8145,7 +8159,7 @@ function renderFoods() {
         <td class="r"><div class="view-cell"><span class="macro-val">${fmt1(f.salt)} g</span></div></td>
         <td class="r"><div class="view-cell"><span class="price-val${f.price?` has-price`:``}">${f.price ? foodPriceDisplay(f.price) : '—'}</span></div></td>
         <td class="r" style=""><div class="view-cell" style="gap:4px">
-          <button class="btn-icon" onclick="editFood(${f.id})" title="Upravit">✏</button>
+          <button class="btn-icon" onclick="foodDetailOpen(${f.id}, true)" title="Upravit">✏</button>
           <button class="btn-icon del" onclick="deleteFood(${f.id})" title="Smazat">🗑</button>
         </div></td>
       </tr>`;
@@ -8169,6 +8183,118 @@ function editFood(id) {
   editingFoodId = id;
   renderFoods();
   setTimeout(() => document.getElementById('fe-name')?.focus(), 30);
+}
+
+// ── Detail / editace potraviny v popupu ──────────────────────────────────────
+let _fdId = null;
+
+function _fdUnitBasis(unit, baleniG) {
+  switch (unit) {
+    case '10g':   return 'Hodnoty na 10 g';
+    case '1kg':   return 'Hodnoty na 1 kg';
+    case '100ml': return 'Hodnoty na 100 ml';
+    case '1l':    return 'Hodnoty na 1 l';
+    case 'ks':    return 'Hodnoty za 1 kus';
+    case 'baleni':return 'Hodnoty za balení' + (baleniG ? ` (${baleniG} g)` : '');
+    default:      return 'Hodnoty na 100 g';
+  }
+}
+
+function foodDetailOpen(id, editMode) {
+  const f = foods.find(x => x.id === id);
+  if (!f) return;
+  _fdId = id;
+  // náhled
+  document.getElementById('fdm-title').textContent = f.name || '—';
+  document.getElementById('fdm-cat').innerHTML = foodCatBadge(f.cat);
+  document.getElementById('fdm-basis').textContent = _fdUnitBasis(f.unit || '100g', f.baleniG);
+  document.getElementById('fdm-kcal').textContent  = (f.kcal > 0 ? f.kcal : '—') + (f.kcal > 0 ? ' kcal' : '');
+  document.getElementById('fdm-prot').textContent  = fmt1(f.prot)  + ' g';
+  document.getElementById('fdm-carb').textContent  = fmt1(f.carb)  + ' g';
+  document.getElementById('fdm-sugar').textContent = fmt1(f.sugar) + ' g';
+  document.getElementById('fdm-fat').textContent   = fmt1(f.fat)   + ' g';
+  document.getElementById('fdm-fiber').textContent = fmt1(f.fiber) + ' g';
+  document.getElementById('fdm-salt').textContent  = fmt1(f.salt)  + ' g';
+  document.getElementById('fdm-price').textContent = f.price ? foodPriceDisplay(f.price) : '—';
+
+  document.getElementById('food-detail-modal').classList.add('open');
+  if (editMode) foodDetailEdit(); else foodDetailShowView();
+}
+
+function foodDetailClose() {
+  document.getElementById('food-detail-modal').classList.remove('open');
+  foodDetailShowView();
+  _fdId = null;
+}
+
+function foodDetailShowView() {
+  document.getElementById('fdm-view').style.display = '';
+  document.getElementById('fdm-edit').style.display = 'none';
+}
+
+function foodDetailEdit() {
+  const f = foods.find(x => x.id === _fdId);
+  if (!f) return;
+  document.getElementById('fdm-e-name').value  = f.name || '';
+  // kategorie select
+  const catSel = document.getElementById('fdm-e-cat');
+  catSel.innerHTML = '<option value="">— bez kategorie —</option>' +
+    FOOD_CATS.map(c => `<option value="${c.id}" ${f.cat===c.id?'selected':''}>${c.emoji} ${c.label}</option>`).join('');
+  document.getElementById('fdm-e-unit').value  = f.unit || '100g';
+  document.getElementById('fdm-e-baleni').value = f.baleniG || '';
+  document.getElementById('fdm-e-kcal').value  = f.kcal ?? '';
+  document.getElementById('fdm-e-prot').value  = f.prot ?? '';
+  document.getElementById('fdm-e-carb').value  = f.carb ?? '';
+  document.getElementById('fdm-e-sugar').value = f.sugar ?? '';
+  document.getElementById('fdm-e-fat').value   = f.fat ?? '';
+  document.getElementById('fdm-e-fiber').value = f.fiber ?? '';
+  document.getElementById('fdm-e-salt').value  = f.salt ?? '';
+  document.getElementById('fdm-e-price').value = f.price ?? '';
+  foodDetailUnitChange();
+  document.getElementById('fdm-view').style.display = 'none';
+  document.getElementById('fdm-edit').style.display = '';
+}
+
+function foodDetailUnitChange() {
+  const unit = document.getElementById('fdm-e-unit').value;
+  document.getElementById('fdm-e-baleni-wrap').style.display = unit === 'baleni' ? '' : 'none';
+  document.getElementById('fdm-e-basis').textContent = _fdUnitBasis(unit, document.getElementById('fdm-e-baleni').value);
+}
+
+function foodDetailSave() {
+  const f = foods.find(x => x.id === _fdId);
+  if (!f) return;
+  const num = id => { const v = parseFloat(document.getElementById(id).value); return isNaN(v) ? 0 : v; };
+  const name = document.getElementById('fdm-e-name').value.trim();
+  if (!name) { document.getElementById('fdm-e-name').focus(); return; }
+  const unit = document.getElementById('fdm-e-unit').value;
+  f.name  = name;
+  f.cat   = document.getElementById('fdm-e-cat').value || '';
+  f.unit  = unit;
+  f.baleniG = unit === 'baleni' ? (parseFloat(document.getElementById('fdm-e-baleni').value) || null) : null;
+  f.kcal  = num('fdm-e-kcal');
+  f.prot  = num('fdm-e-prot');
+  f.carb  = num('fdm-e-carb');
+  f.sugar = num('fdm-e-sugar');
+  f.fat   = num('fdm-e-fat');
+  f.fiber = num('fdm-e-fiber');
+  f.salt  = num('fdm-e-salt');
+  f.price = num('fdm-e-price');
+  saveFoods();
+  renderFoods();
+  foodDetailOpen(_fdId);   // znovu načti náhled s novými hodnotami
+  toast('✓ Potravina upravena');
+}
+
+function foodDetailDelete() {
+  const id = _fdId;
+  if (id == null) return;
+  if (!confirm('Smazat tuto potravinu?')) return;
+  foods = foods.filter(f => f.id !== id);
+  saveFoods();
+  renderFoods();
+  foodDetailClose();
+  toast('🗑 Potravina smazána');
 }
 
 function cancelFoodEdit() {
@@ -10641,21 +10767,29 @@ function importData(input) {
         if (data[k] !== undefined) _origSetItem(k, JSON.stringify(data[k]));
       });
 
-      // 2) Nahraj do Supabase (normalizované schéma) pod přihlášeným uživatelem
+      // 2) Nahraj primo do Supabase pod prihlasenym uzivatelem
       const importUserId = _currentUserId;
       if (!importUserId) { toast('✕ Nejste přihlášen — import nelze provést'); return; }
       toast('⏳ Nahravám data do cloudu…');
       let ok = true;
       for (const k of DATA_KEYS) {
         if (data[k] === undefined) continue;
-        if (!SUPA_TABLE_MAP[k]) continue;
+        const table = SUPA_TABLE_MAP[k];
+        if (!table) continue;
         try {
-          await _supaWriteCollection(k, data[k]);
-          console.log('✓', SUPA_TABLE_MAP[k], 'uloženo pod', importUserId);
-        } catch(err2) {
-          console.warn('Import fail', k, err2); ok = false;
-          toast('✕ DB chyba: ' + SUPA_TABLE_MAP[k] + ' - ' + (err2.message || JSON.stringify(err2)));
-        }
+          const { data: existing, error: selErr } = await supa.from(table).select('id').eq('user_id', importUserId).maybeSingle();
+          if (selErr) { console.warn('Select error', table, selErr); ok = false; continue; }
+          let writeErr;
+          if (existing) {
+            const { error } = await supa.from(table).update({ data: data[k], updated: new Date().toISOString() }).eq('user_id', importUserId);
+            writeErr = error;
+          } else {
+            const { error } = await supa.from(table).insert({ user_id: importUserId, data: data[k], updated: new Date().toISOString() });
+            writeErr = error;
+          }
+          if (writeErr) { console.warn('Write error', table, writeErr); toast('✕ DB chyba: ' + table + ' - ' + (writeErr.message||writeErr.code||JSON.stringify(writeErr))); ok = false; }
+          else { console.log('✓', table, 'uloženo pod', importUserId); }
+        } catch(err2) { console.warn('Import fail', table, err2); ok = false; }
       }
 
       if (ok) {
